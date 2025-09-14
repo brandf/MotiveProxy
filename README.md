@@ -1,8 +1,72 @@
-# Motive Human-in-the-Loop Proxy
+# MotiveProxy
 
-A standalone, stateful proxy server that emulates the OpenAI Chat Completions API to enable bidirectional communication between any two clients that can connect to OpenAI-compatible endpoints.
+> **A generic proxy server that enables bidirectional communication between any two OpenAI-compatible clients.**
 
-## The Problem
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**MotiveProxy** is a standalone, stateful proxy server that emulates the OpenAI Chat Completions API. It enables bidirectional communication between any two clients that can connect to OpenAI-compatible endpoints - perfect for human-in-the-loop testing, game development, agent frameworks, and more.
+
+## 🚀 Quick Start
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/your-username/MotiveProxy.git
+cd MotiveProxy
+.\setup.ps1  # Windows PowerShell
+# OR
+./setup.sh   # Unix/macOS/Linux
+
+# 2. Start the server
+motive-proxy
+
+# 3. Test it works
+curl http://localhost:8000/health
+```
+
+**That's it!** Your proxy server is running and ready to bridge any two OpenAI-compatible clients.
+
+## 💡 Simple Example
+
+Imagine you have a game that normally talks to an AI NPC, but you want to manually control that NPC during development:
+
+```bash
+# Game connects to MotiveProxy (thinking it's talking to an AI)
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "npc-guard", "messages": [{"role": "user", "content": "ping"}]}'
+
+# You connect with a chat UI using the same session ID
+# Game: "You see a troll. What do you do?"
+# You: "I attack the troll!"
+# Game receives your response as if it came from the AI
+```
+
+**No code changes needed** - your game continues using the same OpenAI API calls!
+
+## 🤔 What is MotiveProxy?
+
+MotiveProxy is a **generic bidirectional proxy** that solves the fundamental mismatch between clients that both expect to initiate conversations.
+
+### Why MotiveProxy?
+
+| Problem | Traditional Solution | MotiveProxy Solution |
+|---------|---------------------|---------------------|
+| **Testing AI interactions** | Modify code, mock responses | Zero code changes, real human responses |
+| **Game NPC debugging** | Complex AI debugging tools | Manual control through familiar chat UI |
+| **Agent framework testing** | Separate testing infrastructure | Human-in-the-loop testing with existing tools |
+| **Quality assurance** | Automated test suites only | Human judgment + automated testing |
+
+### Key Benefits
+
+✅ **Zero Code Changes** - Your existing OpenAI API calls work as-is  
+✅ **Familiar Tools** - Use any OpenAI-compatible chat UI  
+✅ **Real-time Control** - Manual intervention when needed  
+✅ **Generic Design** - Works with any client type or use case  
+✅ **Production Ready** - Built with FastAPI and modern Python practices
+
+### The Problem
 
 Consider a system where a program initiates chats with multiple LLMs:
 
@@ -71,24 +135,46 @@ The proxy pairs two clients based on a shared **session ID**, which is passed as
 
 
 
-## Features
+## 📋 Table of Contents
 
--   **OpenAI API Compatible:** Exposes a `/v1/chat/completions` endpoint that works with any OpenAI-compatible client
--   **Bidirectional Proxying:** Seamlessly bridges any two clients that can connect to OpenAI-compatible endpoints
--   **Session Management:** Uses the `model` parameter as a session identifier to pair client connections
--   **Concurrent Sessions:** Manages multiple independent client pairs simultaneously
--   **Asynchronous:** Built with FastAPI and asyncio for efficient handling of long-polling requests
--   **No Code Changes Required:** Clients continue using their existing OpenAI API calls without modification
--   **Protocol Agnostic:** Works with any OpenAI-compatible client - chat UIs, programs, scripts, or other services
--   **Standalone:** No dependencies on any specific application or use case. It's a completely generic proxy
+- [🚀 Quick Start](#-quick-start)
+- [💡 Simple Example](#-simple-example)
+- [🤔 What is MotiveProxy?](#-what-is-motiveproxy)
+- [✨ Features](#-features)
+- [🎯 Use Cases](#-use-cases)
+- [⚙️ Setup](#️-setup)
+- [📖 Usage](#-usage)
+- [🔧 Configuration](#-configuration)
+- [🛠️ Troubleshooting](#️-troubleshooting)
+- [📚 Examples](#-examples)
+- [🤖 For LLM Coding Agents](#-for-llm-coding-agents)
+- [📄 License](#-license)
 
-## Setup
+## ✨ Features
 
-### Quick Start
+| Feature | Description |
+|---------|-------------|
+| 🔌 **OpenAI Compatible** | Works with any OpenAI-compatible client |
+| 🔄 **Bidirectional Proxy** | Bridges two clients seamlessly |
+| 🎯 **Session Management** | Uses `model` parameter as session ID |
+| ⚡ **Concurrent Sessions** | Handles multiple client pairs simultaneously |
+| 🚀 **Async & Fast** | Built with FastAPI and asyncio |
+| 🔧 **Zero Code Changes** | Clients use existing OpenAI API calls |
+| 🌐 **Protocol Agnostic** | Works with any OpenAI-compatible client |
+| 📦 **Standalone** | No dependencies on specific applications |
+
+## ⚙️ Setup
+
+### Prerequisites
+
+- **Python 3.8+** - [Download here](https://www.python.org/downloads/)
+- **Git** - [Download here](https://git-scm.com/downloads)
+
+### Installation
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/your-username/MotiveProxy.git
    cd MotiveProxy
    ```
 
@@ -109,6 +195,16 @@ The proxy pairs two clients based on a shared **session ID**, which is passed as
    # Unix/macOS/Linux
    source venv/bin/activate
    ```
+
+### Verify Installation
+
+```bash
+# Check the CLI works
+motive-proxy --help
+
+# Run tests to verify everything works
+inv test
+```
 
 ### Development Commands
 
@@ -137,7 +233,7 @@ inv run
 inv dev
 ```
 
-## Usage
+## 📖 Usage
 
 ### Starting the Proxy Server
 
@@ -175,7 +271,7 @@ motive-proxy --reload --log-level debug
 
 3. **Client A responds**, and the response is sent back to Client B.
 
-## Compatible Clients
+## 🔌 Compatible Clients
 
 MotiveProxy works with **any OpenAI-compatible client**. Popular options include:
 
@@ -198,7 +294,7 @@ MotiveProxy could easily be extended to support other LLM chat protocols:
 - **Google Gemini API** - Chat-based interface
 - **Custom protocols** - Any HTTP-based chat API
 
-## Generic Design
+## 🎯 Generic Design
 
 MotiveProxy is **completely generic** and doesn't know or care about:
 
@@ -214,7 +310,7 @@ The proxy only cares about:
 
 This makes MotiveProxy useful for any scenario where you need to bridge two clients that expect to initiate conversations.
 
-## Use Cases
+## 🎯 Use Cases
 
 MotiveProxy is perfect for:
 
@@ -238,7 +334,7 @@ MotiveProxy is perfect for:
 - **Debugging AI integration** without changing application code
 - **Prototyping** human-AI interaction patterns
 
-## Configuration
+## 🔧 Configuration
 
 ### Environment Variables
 
@@ -306,7 +402,7 @@ async def connect_as_program(session_id: str, message: str):
         return response.json()
 ```
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
@@ -341,7 +437,7 @@ Monitor proxy health:
 curl http://localhost:8000/health
 ```
 
-## Contributing
+## 🤝 Contributing
 
 We welcome contributions! Please see our development guidelines:
 
@@ -354,7 +450,7 @@ We welcome contributions! Please see our development guidelines:
 
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/your-username/MotiveProxy.git
 cd MotiveProxy
 .\setup.ps1  # or ./setup.sh
 
@@ -368,42 +464,83 @@ inv format-code
 inv lint
 ```
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Examples
+## 📚 Examples
 
-See the [examples/](examples/) directory for practical usage examples:
+### 🚀 Quick Examples
 
-- **[Basic Usage](examples/basic_usage.py)** - Simple Python client example
-- **[Game Integration](examples/game_integration.py)** - Human-controlled NPC in a game
-- **[Curl Examples](examples/curl_examples.sh)** - Command-line HTTP examples
+| Example | Description | Link |
+|---------|-------------|------|
+| 🐍 **Python Client** | Simple programmatic usage | [basic_usage.py](examples/basic_usage.py) |
+| 🎮 **Game Integration** | Human-controlled NPC in a game | [game_integration.py](examples/game_integration.py) |
+| 💻 **Command Line** | HTTP examples with curl | [curl_examples.sh](examples/curl_examples.sh) |
 
-### Quick Example
+### 💡 Python Example
 
 ```python
 import asyncio
 import httpx
 
-async def connect_human(session_id: str):
+async def connect_client(session_id: str, message: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "http://localhost:8000/v1/chat/completions",
             json={
                 "model": session_id,
-                "messages": [{"role": "user", "content": "ping"}]
+                "messages": [{"role": "user", "content": message}]
             }
         )
         return response.json()
 
-# Human connects first
-await connect_human("my-session-123")
+# Client A connects first
+await connect_client("my-session-123", "ping")
 
-# Program connects with real message
-# Human responds through chat UI
-# Response is sent back to program
+# Client B connects with real message
+response = await connect_client("my-session-123", "Hello!")
+print(response["choices"][0]["message"]["content"])
 ```
+
+### 🎮 Game Development Example
+
+Perfect for testing game NPCs manually:
+
+```python
+# Your game normally does this:
+# response = openai_client.chat.completions.create(
+#     model="gpt-4",
+#     messages=[{"role": "user", "content": "You see a troll. What do you do?"}]
+# )
+
+# With MotiveProxy, just change the endpoint:
+response = openai_client.chat.completions.create(
+    model="npc-guard-session-123",  # Session ID
+    messages=[{"role": "user", "content": "You see a troll. What do you do?"}],
+    base_url="http://localhost:8000/v1"  # MotiveProxy endpoint
+)
+# Now a human can respond through their chat UI!
+```
+
+## 🤖 For LLM Coding Agents
+
+**⚠️ IMPORTANT: If you are an LLM coding agent working on this project, you MUST read [AGENT.md](AGENT.md) immediately after this README.**
+
+[AGENT.md](AGENT.md) contains:
+- **Mandatory TDD workflow** (7-step process)
+- **Confidence analysis requirements** (detailed reporting before manual testing)
+- **Durable testing guidelines** (no ad-hoc curl commands!)
+- **Code quality standards** and best practices
+- **Emoji usage guidelines** for documentation
+- **Project-specific patterns** and expectations
+
+**🚀 Quick Start for Agents:**
+1. Read this README (you're here!)
+2. **📋 Read [AGENT.md](AGENT.md) immediately** - This is mandatory!
+3. Follow the TDD workflow for all changes
+4. Provide confidence analysis reports
+5. Use durable testing methods (pytest, not curl)
 
 ## Development
 
