@@ -1,6 +1,7 @@
 """OpenAI Chat Completions API endpoint."""
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from motive_proxy.session_manager import SessionManager
 from motive_proxy.models import (
@@ -10,10 +11,11 @@ from motive_proxy.models import (
     ErrorDetails,
 )
 from motive_proxy.observability import get_logger, extract_request_context, generate_correlation_id, time_operation
+from motive_proxy.streaming import StreamingSession
 
 router = APIRouter()
 
-@router.post("/v1/chat/completions", response_model=ChatCompletionResponse)
+@router.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest, fastapi_request: Request):
     """
     OpenAI Chat Completions API endpoint.
@@ -51,10 +53,36 @@ async def chat_completions(request: ChatCompletionRequest, fastapi_request: Requ
     # Extract the last user message content as the request payload
     content = request.messages[-1].content
     request_context["message_content_length"] = len(content)
+    request_context["stream"] = getattr(request, 'stream', False)
 
     # Route through the session layer implementing handshake/turn protocol
     session_manager: SessionManager = fastapi_request.app.state.session_manager
     
+    # Check if streaming is requested
+    if getattr(request, 'stream', False):
+        logger.info("Streaming request detected", **request_context)
+        
+        async def generate_stream():
+            streaming_session = StreamingSession(request.model, request.model)
+            session = await session_manager.get_or_create(request.model)
+            
+            async for chunk in streaming_session.process_streaming_request(content, session):
+                yield chunk
+            
+            # Send final SSE terminator
+            yield "data: [DONE]\n\n"
+        
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/plain",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Content-Type": "text/event-stream",
+            }
+        )
+    
+    # Non-streaming response (existing logic)
     with time_operation("session_processing", {"session_id": request.model}):
         session = await session_manager.get_or_create(request.model)
         

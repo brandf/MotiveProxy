@@ -192,12 +192,13 @@ Errors
 - structlog fields, correlation IDs, counters/timers. ✅
 - Optional `/metrics` (Prometheus) behind a flag. ✅
 
-### M4: Streaming (Optional but highly desired)
-- Support `stream: true` via Server-Sent Events for OpenAI-compatible streaming.
-- Maintain backpressure; chunk forwarding.
+### M4: Streaming ✅ **COMPLETE**
+- Support `stream: true` via Server-Sent Events for OpenAI-compatible streaming. ✅
+- Maintain backpressure; chunk forwarding. ✅
 
-### M5: Protocol Extensions (behind feature flags)
-- Abstraction for protocol adapters; add a second protocol (e.g., Anthropic) to validate design.
+### M5: Protocol Extensions ✅ **COMPLETE**
+- Abstraction for protocol adapters; add a second protocol (e.g., Anthropic) to validate design. ✅
+- **Future**: Add Google Gemini, Cohere, and other popular LLM protocols as they become available
 
 ### M6: Hardening & Ops
 - Rate limiting, payload limits, CORS refinements, API key auth (optional).
@@ -237,12 +238,15 @@ Errors
 - ☑ Ensure `motive-proxy --help` shows effective config
 
 ### Streaming (Optional Milestone)
-- ☐ Add `stream: true` support via SSE
-- ☐ Stream deltas in OpenAI-compatible format
+- ☑ Add `stream: true` support via SSE
+- ☑ Stream deltas in OpenAI-compatible format
 
 ### Protocol Extensions (Optional Milestone)
-- ☐ Define adapter interface for alternate protocols
-- ☐ Add one additional protocol to validate design
+- ☑ Define adapter interface for alternate protocols
+- ☑ Add one additional protocol to validate design
+- ☐ Add Google Gemini protocol adapter (when API becomes available)
+- ☐ Add Cohere protocol adapter (when API becomes available)
+- ☐ Add other popular LLM protocol adapters as needed
 
 ### Security & Limits
 - ☐ Add basic rate limiting (per IP/session)

@@ -6,7 +6,16 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**MotiveProxy** is a standalone, stateful proxy server that emulates the OpenAI Chat Completions API. It enables bidirectional communication between any two clients that can connect to OpenAI-compatible endpoints - perfect for human-in-the-loop testing, game development, agent frameworks, and more.
+**MotiveProxy** is a production-ready, stateful proxy server that emulates multiple LLM API protocols (OpenAI, Anthropic, and more). It enables bidirectional communication between any two clients that can connect to LLM-compatible endpoints - perfect for human-in-the-loop testing, game development, agent frameworks, and more.
+
+## 🎯 **What's New in v0.1.0**
+
+✅ **Streaming Support** - Full Server-Sent Events (SSE) support for real-time streaming  
+✅ **Multi-Protocol Support** - OpenAI and Anthropic Claude API compatibility  
+✅ **Production Observability** - Structured logging, metrics, and correlation IDs  
+✅ **Configuration Management** - Environment variables and CLI configuration  
+✅ **Session Management** - Automatic cleanup, TTL, and admin endpoints  
+✅ **Comprehensive Testing** - 70+ tests with full coverage
 
 ## 🚀 Quick Start
 
@@ -154,13 +163,16 @@ The proxy pairs two clients based on a shared **session ID**, which is passed as
 
 | Feature | Description |
 |---------|-------------|
-| 🔌 **OpenAI Compatible** | Works with any OpenAI-compatible client |
+| 🔌 **Multi-Protocol Support** | OpenAI Chat Completions + Anthropic Claude APIs |
 | 🔄 **Bidirectional Proxy** | Bridges two clients seamlessly |
-| 🎯 **Session Management** | Uses `model` parameter as session ID |
+| 📡 **Streaming Support** | Real-time Server-Sent Events (SSE) streaming |
+| 🎯 **Session Management** | Uses `model` parameter as session ID with TTL |
 | ⚡ **Concurrent Sessions** | Handles multiple client pairs simultaneously |
 | 🚀 **Async & Fast** | Built with FastAPI and asyncio |
-| 🔧 **Zero Code Changes** | Clients use existing OpenAI API calls |
-| 🌐 **Protocol Agnostic** | Works with any OpenAI-compatible client |
+| 🔧 **Zero Code Changes** | Clients use existing LLM API calls |
+| 📊 **Production Observability** | Structured logging, metrics, correlation IDs |
+| ⚙️ **Configuration Management** | Environment variables and CLI configuration |
+| 🛡️ **Admin Endpoints** | Session monitoring and health checks |
 | 📦 **Standalone** | No dependencies on specific applications |
 
 ## ⚙️ Setup
@@ -252,6 +264,9 @@ motive-proxy --reload --log-level debug
 
 - **Health Check:** `GET /health`
 - **Chat Completions:** `POST /v1/chat/completions` (OpenAI compatible)
+- **Anthropic Messages:** `POST /v1/messages` (Anthropic Claude compatible)
+- **Metrics:** `GET /metrics` (Observability metrics)
+- **Admin Sessions:** `GET /admin/sessions` (Session monitoring)
 
 ### Example Usage
 
@@ -271,9 +286,41 @@ motive-proxy --reload --log-level debug
 
 3. **Client A responds**, and the response is sent back to Client B.
 
+### Streaming Support
+
+MotiveProxy supports real-time streaming with Server-Sent Events (SSE):
+
+```bash
+# Enable streaming
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "session-123", "messages": [{"role": "user", "content": "Hello"}], "stream": true}'
+
+# Response streams word-by-word:
+# data: {"id": "chatcmpl-...", "object": "chat.completion.chunk", "choices": [{"delta": {"content": "Hello"}}]}
+# data: {"id": "chatcmpl-...", "object": "chat.completion.chunk", "choices": [{"delta": {"content": " world"}}]}
+# data: [DONE]
+```
+
+### Multi-Protocol Support
+
+MotiveProxy supports multiple LLM APIs through protocol adapters:
+
+```bash
+# OpenAI Chat Completions API
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "session-123", "messages": [{"role": "user", "content": "Hello"}]}'
+
+# Anthropic Claude Messages API  
+curl -X POST http://localhost:8000/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{"model": "session-123", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
 ## 🔌 Compatible Clients
 
-MotiveProxy works with **any OpenAI-compatible client**. Popular options include:
+MotiveProxy works with **any LLM-compatible client**. Popular options include:
 
 ### Chat Interfaces
 - **Ollama Web UI** - Simple, clean interface
@@ -289,10 +336,10 @@ MotiveProxy works with **any OpenAI-compatible client**. Popular options include
 
 ### Protocol Extensions
 
-MotiveProxy could easily be extended to support other LLM chat protocols:
-- **Anthropic Claude API** - Similar chat completion format
-- **Google Gemini API** - Chat-based interface
-- **Custom protocols** - Any HTTP-based chat API
+MotiveProxy supports multiple LLM protocols with a flexible adapter system:
+- **OpenAI Chat Completions API** - Full compatibility with streaming
+- **Anthropic Claude API** - Complete Claude Messages API support
+- **Extensible Architecture** - Easy to add Google Gemini, Cohere, or custom protocols
 
 ## 🎯 Generic Design
 
@@ -345,17 +392,21 @@ Create a `.env` file in your project root:
 MOTIVE_PROXY_HOST=127.0.0.1
 MOTIVE_PROXY_PORT=8000
 MOTIVE_PROXY_LOG_LEVEL=info
+MOTIVE_PROXY_DEBUG=false
 
 # Session Management
-MOTIVE_PROXY_SESSION_TIMEOUT=3600  # seconds
+MOTIVE_PROXY_HANDSHAKE_TIMEOUT_SECONDS=30
+MOTIVE_PROXY_TURN_TIMEOUT_SECONDS=30
+MOTIVE_PROXY_SESSION_TTL_SECONDS=3600
 MOTIVE_PROXY_MAX_SESSIONS=100
+MOTIVE_PROXY_CLEANUP_INTERVAL_SECONDS=60
 
-# CORS Settings (for web clients)
+# Observability
+MOTIVE_PROXY_ENABLE_METRICS=true
+
+# Security
 MOTIVE_PROXY_CORS_ORIGINS=*
-
-# Development Settings
-MOTIVE_PROXY_DEBUG=false
-MOTIVE_PROXY_RELOAD=false
+MOTIVE_PROXY_MAX_PAYLOAD_SIZE=1048576
 ```
 
 > **Note:** Copy `.env.example` to `.env` and modify as needed (if available in your version).
