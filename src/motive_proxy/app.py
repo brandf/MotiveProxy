@@ -10,7 +10,7 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="MotiveProxy",
-        description="A human-in-the-loop proxy server for OpenAI Chat Completions API",
+        description="A human-in-the-loop proxy server for OpenAI Chat Completions API",  # noqa: E501
         version="0.1.0",
         docs_url="/docs",
         redoc_url="/redoc",
@@ -19,7 +19,7 @@ def create_app() -> FastAPI:
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Configure appropriately for production
+        allow_origins=["*"],  # Configure appropriately for production  # noqa: E501
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

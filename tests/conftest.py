@@ -33,7 +33,7 @@ def client(app):
 @pytest.fixture
 async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create an async test client for the FastAPI application."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(base_url="http://test") as ac:
         yield ac
 
 

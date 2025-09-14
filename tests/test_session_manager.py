@@ -118,7 +118,7 @@ class TestSessionManager:
         manager = SessionManager()
         session_id = "test-session-123"
 
-        session = manager.create_session(session_id)
+        manager.create_session(session_id)
         assert session_id in manager.sessions
 
         # Simulate session becoming inactive (no clients connected)

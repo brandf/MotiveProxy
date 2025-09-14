@@ -52,6 +52,7 @@ When adding features or fixing bugs, follow this **mandatory workflow**:
 - Run the real application to reproduce issues or exercise new features
 - Verify the feature works as expected in practice
 - Test edge cases and error conditions
+- **Always prefer durable testing methods** over ad-hoc manual testing
 
 ## Test Quality Standards
 
@@ -395,6 +396,97 @@ High risk of runtime errors and integration issues. Implementation needs signifi
 ### 🚀 Ready for Manual Testing: No
 ```
 
+## 🧪 Durable Testing Guidelines
+
+### ✅ **Always Prefer Durable Testing Methods**
+
+**Never use ad-hoc manual testing** when durable alternatives exist:
+
+#### ❌ **Avoid These Fragile Approaches:**
+- Manual `curl` commands in chat/terminal
+- Ad-hoc `Invoke-WebRequest` PowerShell commands
+- Manual Python scripts run once and forgotten
+- Browser-based manual testing without automation
+- One-off command-line testing
+
+#### ✅ **Use These Durable Approaches:**
+- **pytest tests** for all functionality
+- **Integration tests** for API endpoints
+- **End-to-end tests** for complete workflows
+- **Automated test suites** that run in CI/CD
+- **Test fixtures** for consistent test data
+
+### 🎯 **Testing Hierarchy (Best to Worst):**
+
+1. **🏆 Unit Tests** - Test individual functions/classes
+2. **🔗 Integration Tests** - Test component interactions
+3. **🌐 End-to-End Tests** - Test complete user workflows
+4. **📊 Performance Tests** - Test under load/stress
+5. **⚠️ Manual Testing** - Only for exploratory testing
+
+### 📋 **When Manual Testing is Acceptable:**
+- **Exploratory testing** to understand behavior
+- **Debugging** specific issues
+- **Demonstration** of functionality
+- **Initial development** before writing tests
+
+### 🚫 **When Manual Testing is NOT Acceptable:**
+- **Regression testing** (use automated tests)
+- **Feature validation** (write proper tests)
+- **API endpoint testing** (use pytest + httpx)
+- **Performance validation** (use automated benchmarks)
+
+### 💡 **Best Practices:**
+
+#### **For API Testing:**
+```python
+def test_api_endpoint_integration(client: TestClient):
+    """Test API endpoint with real HTTP requests."""
+    response = client.post("/v1/chat/completions", json={
+        "model": "test-session",
+        "messages": [{"role": "user", "content": "Hello"}]
+    })
+    assert response.status_code == 200
+    assert "choices" in response.json()
+```
+
+#### **For Server Testing:**
+```python
+@pytest.mark.asyncio
+async def test_server_startup():
+    """Test that server can start and respond."""
+    from motive_proxy.app import create_app
+    app = create_app()
+    
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app)
+    ) as client:
+        response = await client.get("/health")
+        assert response.status_code == 200
+```
+
+#### **For End-to-End Testing:**
+```python
+def test_complete_workflow():
+    """Test complete user workflow from start to finish."""
+    # Test the entire flow, not just individual components
+    pass
+```
+
+### 🔄 **Test-Driven Development for Server Features:**
+
+1. **🔴 Write integration tests** for new endpoints
+2. **🛠️ Implement the endpoint** to make tests pass
+3. **🟢 Verify tests pass** with real server
+4. **🔄 Add edge case tests** for robustness
+5. **📊 Add performance tests** if needed
+
+### 📝 **Documentation Testing:**
+- **Always test examples** in documentation
+- **Verify code snippets** actually work
+- **Update tests** when documentation changes
+- **Include test coverage** for all documented features
+
 ## Debugging Guidelines
 
 ### When Tests Fail
@@ -405,11 +497,11 @@ High risk of runtime errors and integration issues. Implementation needs signifi
 5. **Don't just make tests pass - fix real issues**
 
 ### When Features Don't Work
-1. **Run the application manually**
-2. **Test with real clients (curl, Python scripts)**
-3. **Check logs for error messages**
-4. **Verify session pairing is working**
-5. **Test edge cases and error conditions**
+1. **Write a failing test** that reproduces the issue
+2. **Use pytest debugging** with `--pdb` flag
+3. **Check logs** in test output
+4. **Verify test data** and fixtures
+5. **Test edge cases** systematically
 
 ## Commit Standards
 
@@ -461,6 +553,61 @@ Fixes #123
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Development setup and practices
 - [README.md](README.md) - Project overview and usage
 - [examples/](examples/) - Usage examples and patterns
+
+## 📝 Documentation and Communication Guidelines
+
+### 🎨 Emoji Usage Standards
+
+**Use emojis strategically** to make documentation and responses more visually scannable and engaging:
+
+#### ✅ **When to Use Emojis:**
+- **Section headings** in documentation and responses
+- **TDD phase indicators** (🔴 Red, 🟢 Green, 🔄 Refactor)
+- **Key workflow steps** and milestones
+- **Status indicators** (✅ Complete, ❌ Failed, ⚠️ Warning)
+- **Important callouts** and highlights
+- **Development workflow phases**
+
+#### ❌ **When NOT to Use Emojis:**
+- Every single list item (use sparingly)
+- In code comments or technical specifications
+- Overly frequently (aim for 1-2 per major section)
+- In commit messages (keep professional)
+
+#### 🎯 **Examples of Good Emoji Usage:**
+
+```markdown
+## 🚀 Getting Started
+### 🔧 Setup Requirements
+### 🧪 Testing Your Changes
+
+## 🔴 Red Phase - Write Failing Tests
+## 🟢 Green Phase - Make Tests Pass
+## 🔄 Refactor Phase - Improve Code
+
+## ✅ Completed Tasks
+## ⚠️ Known Issues
+## 🎯 Next Steps
+```
+
+#### 📋 **TDD Workflow with Emojis:**
+```markdown
+### 🔍 0. Understand the Problem
+### 🔴 1. Red Phase - Write Tests First
+### 🛠️ 2. Implement Feature/Fix Bug
+### 🟢 3. Green Phase - Verify Tests Pass
+### 🐛 4. Debug if Not Green
+### 🔄 5. Regression Testing
+### 📊 6. Confidence Analysis Report
+### 🚀 7. Manual Verification
+```
+
+#### 💡 **Communication Best Practices:**
+- Use emojis to **draw attention** to important sections
+- Make it **easy to scan** and skip over details
+- **Balance professionalism** with visual appeal
+- Use **consistent emoji choices** for similar concepts
+- **Don't overdo it** - quality over quantity
 
 ## Summary
 
