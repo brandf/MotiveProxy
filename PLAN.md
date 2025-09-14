@@ -200,9 +200,9 @@ Errors
 - Abstraction for protocol adapters; add a second protocol (e.g., Anthropic) to validate design. ✅
 - **Future**: Add Google Gemini, Cohere, and other popular LLM protocols as they become available
 
-### M6: Hardening & Ops
-- Rate limiting, payload limits, CORS refinements, API key auth (optional).
-- Admin endpoints: list sessions (masked), health details. ✅ Basic admin endpoint implemented
+### M6: Hardening & Ops ✅ **COMPLETE**
+- Rate limiting, payload limits, CORS refinements, API key auth (optional). ✅
+- Admin endpoints: list sessions (masked), health details. ✅
 
 ## ✅ Detailed Checklist (Emoji Checkboxes)
 
@@ -249,14 +249,14 @@ Errors
 - ☐ Add other popular LLM protocol adapters as needed
 
 ### Security & Limits
-- ☐ Add basic rate limiting (per IP/session)
-- ☐ Enforce payload size limit; 413 on exceed
-- ☐ CORS configuration and tests
-- ☐ Optional API key auth
+- ☑ Add basic rate limiting (per IP/session)
+- ☑ Enforce payload size limit; 413 on exceed
+- ☑ CORS configuration and tests
+- ☑ Optional API key auth
 
 ### Admin & Ops
-- ☐ `/sessions` admin endpoint (redacted info, behind flag)
-- ☐ Health details endpoint (uptime, active sessions)
+- ☑ `/sessions` admin endpoint (redacted info, behind flag)
+- ☑ Health details endpoint (uptime, active sessions)
 
 ### Testing (expand existing suite)
 - ☑ Unit tests: Session, SessionManager (minimal); validators; Router TBD

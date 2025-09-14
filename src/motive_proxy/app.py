@@ -11,8 +11,10 @@ from motive_proxy.models import ErrorResponse, ErrorDetails
 from motive_proxy.session_manager import SessionManager
 from motive_proxy.observability import setup_logging, get_logger, extract_request_context, generate_correlation_id
 from motive_proxy.settings import get_settings
+from motive_proxy.middleware import SecurityMiddleware, CORSMiddleware
 import asyncio
 import contextlib
+import time
 
 
 @asynccontextmanager
@@ -50,6 +52,9 @@ async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_cleanup_loop())
     app.state.cleanup_task = cleanup_task
     
+    # Store startup time for uptime calculation
+    app.state.start_time = time.time()
+    
     logger.info("MotiveProxy startup complete")
     yield
     
@@ -64,6 +69,8 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    settings = get_settings()
+    
     app = FastAPI(
         title="MotiveProxy",
         description="A human-in-the-loop proxy server for OpenAI Chat Completions API",  # noqa: E501
@@ -73,14 +80,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Add CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # Configure appropriately for production  # noqa: E501
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # Add security middleware
+    app.add_middleware(SecurityMiddleware)
+    
+    # Add enhanced CORS middleware
+    app.add_middleware(CORSMiddleware, settings=settings)
 
     # Include routers
     app.include_router(health.router)

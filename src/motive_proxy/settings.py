@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default=["*"], description="CORS allowed origins")
     max_payload_size: int = Field(default=1024 * 1024, description="Max request payload size (bytes)")
     
+    # Rate limiting settings
+    enable_rate_limiting: bool = Field(default=True, description="Enable rate limiting")
+    rate_limit_requests_per_minute: int = Field(default=60, description="Requests per minute per IP")
+    rate_limit_requests_per_hour: int = Field(default=1000, description="Requests per hour per IP")
+    rate_limit_burst_limit: int = Field(default=10, description="Burst limit (requests per 10 seconds)")
+    
+    # Authentication settings
+    enable_api_key_auth: bool = Field(default=False, description="Enable API key authentication")
+    api_key_header: str = Field(default="X-API-Key", description="API key header name")
+    valid_api_keys: list[str] = Field(default=[], description="Valid API keys")
+    
     model_config = ConfigDict(
         env_prefix="MOTIVE_PROXY_",
         case_sensitive=False,

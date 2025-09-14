@@ -173,6 +173,8 @@ The proxy pairs two clients based on a shared **session ID**, which is passed as
 | 📊 **Production Observability** | Structured logging, metrics, correlation IDs |
 | ⚙️ **Configuration Management** | Environment variables and CLI configuration |
 | 🛡️ **Admin Endpoints** | Session monitoring and health checks |
+| 🔒 **Security & Rate Limiting** | IP-based rate limiting, payload limits, CORS |
+| 🔑 **Authentication** | Optional API key authentication |
 | 📦 **Standalone** | No dependencies on specific applications |
 
 ## ⚙️ Setup
@@ -381,6 +383,29 @@ MotiveProxy is perfect for:
 - **Debugging AI integration** without changing application code
 - **Prototyping** human-AI interaction patterns
 
+## 🔒 Security Features
+
+MotiveProxy includes comprehensive security features for production deployments:
+
+### Rate Limiting
+- **Per-IP limits**: Configurable requests per minute/hour
+- **Burst protection**: Prevents rapid-fire requests
+- **Automatic cleanup**: Removes old rate limit entries
+
+### Payload Protection
+- **Size limits**: Configurable maximum request size (default: 1MB)
+- **413 responses**: Clear error messages for oversized requests
+
+### CORS Configuration
+- **Origin control**: Whitelist specific domains
+- **Preflight support**: Handles OPTIONS requests automatically
+- **Credential support**: Allows authenticated requests
+
+### Authentication (Optional)
+- **API key auth**: Simple header-based authentication
+- **Multiple keys**: Support for multiple valid API keys
+- **Configurable**: Enable/disable via environment variables
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -401,12 +426,21 @@ MOTIVE_PROXY_SESSION_TTL_SECONDS=3600
 MOTIVE_PROXY_MAX_SESSIONS=100
 MOTIVE_PROXY_CLEANUP_INTERVAL_SECONDS=60
 
+# Security & Rate Limiting
+MOTIVE_PROXY_ENABLE_RATE_LIMITING=true
+MOTIVE_PROXY_RATE_LIMIT_REQUESTS_PER_MINUTE=60
+MOTIVE_PROXY_RATE_LIMIT_REQUESTS_PER_HOUR=1000
+MOTIVE_PROXY_RATE_LIMIT_BURST_LIMIT=10
+MOTIVE_PROXY_MAX_PAYLOAD_SIZE=1048576
+MOTIVE_PROXY_CORS_ORIGINS=["*"]
+
+# Authentication (Optional)
+MOTIVE_PROXY_ENABLE_API_KEY_AUTH=false
+MOTIVE_PROXY_API_KEY_HEADER=X-API-Key
+MOTIVE_PROXY_VALID_API_KEYS=[]
+
 # Observability
 MOTIVE_PROXY_ENABLE_METRICS=true
-
-# Security
-MOTIVE_PROXY_CORS_ORIGINS=*
-MOTIVE_PROXY_MAX_PAYLOAD_SIZE=1048576
 ```
 
 > **Note:** Copy `.env.example` to `.env` and modify as needed (if available in your version).
