@@ -1,0 +1,8 @@
+# Core dependencies only - development dependencies are in pyproject.toml
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+httpx>=0.25.2
+click>=8.1.7
+python-dotenv>=1.0.0
+structlog>=23.2.0
+pydantic>=2.0.0,<3.0.0
