@@ -2,6 +2,8 @@
 
 This document establishes expectations for LLM coding agents working on the MotiveProxy project. All development must follow **Test-Driven Development (TDD)** principles.
 
+> 🧭 **IMPORTANT: PLAN.md is the living source of truth.** Read it before starting any work, re-read it frequently during a task, and keep it up to date. No implementation should begin without a corresponding PLAN update.
+
 ## Core TDD Workflow
 
 When adding features or fixing bugs, follow this **mandatory workflow**:
@@ -137,6 +139,41 @@ async def get_session(session_id: str) -> Optional[Session]:
 - Handle all required and optional parameters
 - Return proper error responses for invalid requests
 - Support concurrent sessions
+
+## 📘 PLAN.md: Source of Truth & Living Roadmap
+
+### Usage Expectations
+- **Read First**: Before any task, read `PLAN.md` to select the next item. Re-read it after each change, before commits, and before opening a PR.
+- **Follow the Plan**: Treat `PLAN.md` as the authoritative checklist and guidance for architecture, behavior, and acceptance criteria.
+- **Derive Tests from PLAN**: Tests should reflect the behavioral requirements and acceptance criteria described in `PLAN.md`.
+
+### Update & Governance Rules
+- **Plan Before Code**: When new requirements/bugs/features arrive, add or update `PLAN.md` with scope, acceptance criteria, and test outline **before** implementing.
+- **Keep It Current**: Update `PLAN.md` whenever scope changes, when a design decision is made, or when risks are discovered.
+- **Checkbox Discipline**: Use emoji checkboxes to track status and check them when items are completed and merged (tests passing).
+- **Traceability**: Link checklist items to commits/PRs in parentheses after the item when possible (e.g., `(PR #123)`).
+- **No Drift**: If implementation deviates from `PLAN.md`, revise the plan first, then implement.
+
+### Checklist Conventions
+- ☐ TODO: Not started
+- ⏳ In Progress: Currently being implemented
+- ☑ Done: Implemented, tests pass, merged
+- ❌ Cancelled/Not Needed
+
+### PR & Review Requirements
+- **PR Template** should include:
+  - Referenced `PLAN.md` item(s) and milestone
+  - Confirmation that `PLAN.md` was updated (checkboxes adjusted, new items added if needed)
+  - Summary of added/updated tests derived from the plan
+- **Review Gate**: PRs that change behavior must update `PLAN.md`. If not applicable, explicitly state why.
+
+### When Requirements Change
+- Add a new item or adjust the existing one in `PLAN.md` with:
+  - Updated description, scope, and rationale
+  - Behavioral requirements and acceptance criteria
+  - Test plan (unit/integration/E2E)
+  - Risks/assumptions
+- Only after updating the plan do you proceed with the Red → Green cycle.
 
 ## Testing Commands
 
@@ -552,6 +589,7 @@ Fixes #123
 ### Resources
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Development setup and practices
 - [README.md](README.md) - Project overview and usage
+- [PLAN.md](PLAN.md) - Living roadmap and source of truth
 - [examples/](examples/) - Usage examples and patterns
 
 ## 📝 Documentation and Communication Guidelines
