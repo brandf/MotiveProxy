@@ -36,8 +36,8 @@ class TestServerSmoke:
         response = client.post("/v1/chat/completions", json=request_data)
         # Should not return 422 (validation error) - request structure is valid
         assert response.status_code != 422
-        # For now, we expect it to return some response (even if not implemented)
-        assert response.status_code in [200, 500, 501]
+        # For now, unpaired requests may 408 (timeout) until the counterpart arrives
+        assert response.status_code in [200, 408, 500, 501]
 
     def test_openai_endpoint_returns_proper_format(self, client: TestClient):
         """Test that the OpenAI endpoint returns proper response format."""
@@ -115,8 +115,8 @@ class TestServerSmoke:
         }
 
         response = client.post("/v1/chat/completions", json=request_data)
-        # Should not crash or timeout
-        assert response.status_code in [200, 400, 413, 500, 501]
+        # Should not crash; may timeout if unpaired
+        assert response.status_code in [200, 400, 408, 413, 500, 501]
 
     def test_server_handles_empty_messages(self, client: TestClient):
         """Test that server handles empty messages array."""

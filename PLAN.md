@@ -188,9 +188,9 @@ Errors
 - Concurrency safety (locks) and race handling.
 - Error taxonomy and consistent error payloads.
 
-### M3: Observability
-- structlog fields, correlation IDs, counters/timers.
-- Optional `/metrics` (Prometheus) behind a flag.
+### M3: Observability ✅ **COMPLETE**
+- structlog fields, correlation IDs, counters/timers. ✅
+- Optional `/metrics` (Prometheus) behind a flag. ✅
 
 ### M4: Streaming (Optional but highly desired)
 - Support `stream: true` via Server-Sent Events for OpenAI-compatible streaming.
@@ -201,7 +201,7 @@ Errors
 
 ### M6: Hardening & Ops
 - Rate limiting, payload limits, CORS refinements, API key auth (optional).
-- Admin endpoints: list sessions (masked), health details.
+- Admin endpoints: list sessions (masked), health details. ✅ Basic admin endpoint implemented
 
 ## ✅ Detailed Checklist (Emoji Checkboxes)
 
@@ -211,30 +211,30 @@ Errors
 - ☑ Basic FastAPI app and health route
 
 ### API Models & Validation
-- ☐ Define `Message`, `ChatCompletionRequest`, `ChatCompletionResponse` (non-stream)
-- ☐ Centralize validation errors → `ErrorResponse`
-- ☐ Map internal envelopes ⇄ OpenAI response structure
+- ☑ Define `Message`, `ChatCompletionRequest`, `ChatCompletionResponse` (non-stream)
+- ☑ Centralize validation errors → `ErrorResponse` (global 422 handler)
+- ☑ Map internal envelopes ⇄ OpenAI response structure (non-stream)
 
 ### Session Layer
-- ☐ Implement `Session` state enum and structure (queues, locks, timestamps)
-- ☐ Implement handshake logic and `await_reply()` with timeouts
-- ☐ Implement `SessionManager` (create, get, close, cleanup, max sessions)
-- ☐ Background cleanup task for expired sessions
+- ☑ Implement `Session` state and structure (locks, futures; M1 minimal)
+- ☑ Implement handshake logic and `await_reply()` with timeouts
+- ☑ Implement `SessionManager` (get_or_create, close, max sessions) — background cleanup pending
+- ☑ Background cleanup task for expired sessions (lifespan + admin endpoint)
 
 ### Routing & Behavior
-- ☐ Implement `MessageRouter.route()` for A/B turns
-- ☐ Enforce handshake rules and first message ignore for A
-- ☐ Implement 408 for handshake/turn timeout with standard error body
-- ☐ Handle simultaneous connect; deterministic A/B assignment
+- ☐ Implement `MessageRouter.route()` for A/B turns (Session handles turns in M1)
+- ☑ Enforce handshake rules and first message ignore for A
+- ☑ Implement 408 for handshake/turn timeout with standard error body
+- ☑ Handle simultaneous connect; deterministic A/B assignment (tested)
 
 ### Observability
-- ☐ Integrate structlog; add session/request fields
-- ☐ Add counters and timers; expose optionally via `/metrics`
+- ☑ Integrate structlog; add session/request fields
+- ☑ Add counters and timers; expose optionally via `/metrics`
 
 ### Configuration & CLI
-- ☐ Add pydantic settings for timeouts, limits, flags
-- ☐ Wire settings into app and SessionManager
-- ☐ Ensure `motive-proxy --help` shows effective config
+- ☑ Add pydantic settings for timeouts, limits, flags
+- ☑ Wire settings into app and SessionManager
+- ☑ Ensure `motive-proxy --help` shows effective config
 
 ### Streaming (Optional Milestone)
 - ☐ Add `stream: true` support via SSE
@@ -255,9 +255,9 @@ Errors
 - ☐ Health details endpoint (uptime, active sessions)
 
 ### Testing (expand existing suite)
-- ☐ Unit tests: SessionManager, Session, Router, validators, mappers
-- ☐ Integration: handshake, turns, timeouts, concurrent sessions
-- ☐ Concurrency & race: simultaneous connect, burst load
+- ☑ Unit tests: Session, SessionManager (minimal); validators; Router TBD
+- ☑ Integration: handshake, turns, timeouts, concurrent sessions
+- ☑ Concurrency & race: simultaneous connect (burst load pending)
 - ☐ E2E: example clients covering end-to-end flows
 - ☐ Regression: add tests for each discovered bug
 

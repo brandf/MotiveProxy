@@ -2,47 +2,53 @@
 
 import click
 import uvicorn
-
-from motive_proxy.app import create_app
+from motive_proxy.settings import get_settings
 
 
 @click.command()
-@click.option(
-    "--host",
-    default="127.0.0.1",
-    help="Host to bind the server to",
-    show_default=True,
-)
-@click.option(
-    "--port",
-    default=8000,
-    type=int,
-    help="Port to bind the server to",
-    show_default=True,
-)
-@click.option(
-    "--reload",
-    is_flag=True,
-    help="Enable auto-reload for development",
-)
-@click.option(
-    "--log-level",
-    default="info",
-    type=click.Choice(["critical", "error", "warning", "info", "debug"]),
-    help="Log level",
-    show_default=True,
-)
-def main(host: str, port: int, reload: bool, log_level: str) -> None:
-    """Run the MotiveProxy server."""
-    app = create_app()
-
-    click.echo(f"🚀 Starting MotiveProxy server on http://{host}:{port}")
-    click.echo(f"📚 API documentation available at http://{host}:{port}/docs")
-
+@click.option("--host", default=None, help="Host to bind to")
+@click.option("--port", default=None, type=int, help="Port to bind to")
+@click.option("--reload", is_flag=True, help="Enable auto-reload for development")
+@click.option("--log-level", default=None, help="Logging level (debug, info, warning, error)")
+@click.option("--debug", is_flag=True, help="Enable debug mode")
+def main(host: str, port: int, reload: bool, log_level: str, debug: bool):
+    """MotiveProxy - A bidirectional proxy for OpenAI-compatible clients."""
+    settings = get_settings()
+    
+    # Override settings with CLI arguments
+    if host is not None:
+        settings.host = host
+    if port is not None:
+        settings.port = port
+    if log_level is not None:
+        settings.log_level = log_level
+    if debug:
+        settings.debug = True
+        settings.log_level = "DEBUG"
+    
+    # Display effective configuration
+    click.echo("🚀 Starting MotiveProxy with configuration:")
+    click.echo(f"   Host: {settings.host}")
+    click.echo(f"   Port: {settings.port}")
+    click.echo(f"   Debug: {settings.debug}")
+    click.echo(f"   Log Level: {settings.log_level}")
+    click.echo(f"   Handshake Timeout: {settings.handshake_timeout_seconds}s")
+    click.echo(f"   Turn Timeout: {settings.turn_timeout_seconds}s")
+    click.echo(f"   Session TTL: {settings.session_ttl_seconds}s")
+    click.echo(f"   Max Sessions: {settings.max_sessions}")
+    click.echo(f"   Auto-reload: {reload}")
+    click.echo()
+    
+    # Start the server
     uvicorn.run(
-        app,
-        host=host,
-        port=port,
+        "motive_proxy.app:create_app",
+        factory=True,
+        host=settings.host,
+        port=settings.port,
         reload=reload,
-        log_level=log_level,
+        log_level=settings.log_level.lower(),
     )
+
+
+if __name__ == "__main__":
+    main()

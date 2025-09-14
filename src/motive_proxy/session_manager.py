@@ -1,66 +1,62 @@
 """Session management for human-in-the-loop interactions."""
 
-from dataclasses import dataclass
-from typing import Dict, Optional
-from unittest.mock import Mock
+from __future__ import annotations
 
+import asyncio
+from typing import Dict, List
 
-@dataclass
-class Session:
-    """Represents a session between a human and a program client."""
-
-    session_id: str
-    human_client: Optional[Mock] = None
-    program_client: Optional[Mock] = None
-
-    def is_human_connected(self) -> bool:
-        """Check if a human client is connected to this session."""
-        return self.human_client is not None
-
-    def is_program_connected(self) -> bool:
-        """Check if a program client is connected to this session."""
-        return self.program_client is not None
-
-    def is_ready(self) -> bool:
-        """Check if both human and program clients are connected."""
-        return self.is_human_connected() and self.is_program_connected()
-
-    def connect_human(self, client: Mock) -> None:
-        """Connect a human client to this session."""
-        self.human_client = client
-
-    def connect_program(self, client: Mock) -> None:
-        """Connect a program client to this session."""
-        self.program_client = client
-
-    def disconnect_human(self) -> None:
-        """Disconnect the human client from this session."""
-        self.human_client = None
-
-    def disconnect_program(self) -> None:
-        """Disconnect the program client from this session."""
-        self.program_client = None
+from motive_proxy.session import Session
 
 
 class SessionManager:
     """Manages sessions for human-in-the-loop interactions."""
 
-    def __init__(self):
-        """Initialize the session manager."""
-        self.sessions: Dict[str, Session] = {}
+    def __init__(self,
+                 handshake_timeout_seconds: float = 30.0,
+                 turn_timeout_seconds: float = 30.0,
+                 max_sessions: int = 100) -> None:
+        self._sessions: Dict[str, Session] = {}
+        self._lock = asyncio.Lock()
+        self._handshake_timeout = handshake_timeout_seconds
+        self._turn_timeout = turn_timeout_seconds
+        self._max_sessions = max_sessions
 
-    def create_session(self, session_id: str) -> Session:
-        """Create a new session with the given ID."""
-        session = Session(session_id=session_id)
-        self.sessions[session_id] = session
-        return session
+    async def get_or_create(self, session_id: str) -> Session:
+        """Get or create a session safely under a lock."""
+        async with self._lock:
+            session = self._sessions.get(session_id)
+            if session is not None:
+                return session
+            if len(self._sessions) >= self._max_sessions:
+                # Simple guard; more graceful error handling can be added later
+                raise RuntimeError("Max sessions limit reached")
+            session = Session(
+                session_id=session_id,
+                handshake_timeout_seconds=self._handshake_timeout,
+                turn_timeout_seconds=self._turn_timeout,
+            )
+            self._sessions[session_id] = session
+            return session
 
-    def get_session(self, session_id: str) -> Optional[Session]:
-        """Get an existing session by ID."""
-        return self.sessions.get(session_id)
+    async def close(self, session_id: str) -> None:
+        async with self._lock:
+            self._sessions.pop(session_id, None)
 
-    def cleanup_inactive_sessions(self) -> None:
-        """Clean up sessions that have no active connections."""
-        # TODO: Implement cleanup logic for inactive sessions
-        # For now, we'll keep all sessions
-        pass
+    async def count(self) -> int:
+        async with self._lock:
+            return len(self._sessions)
+
+    async def list_sessions(self) -> List[dict]:
+        """Return metadata for active sessions (redacted)."""
+        async with self._lock:
+            return [s.metadata() for s in self._sessions.values()]
+
+    async def cleanup_expired(self, ttl_seconds: float) -> int:
+        """Remove sessions idle longer than ttl_seconds. Returns count removed."""
+        import time
+        async with self._lock:
+            now = time.time()
+            to_delete = [sid for sid, s in self._sessions.items() if (now - s._last_activity_ts) > ttl_seconds]
+            for sid in to_delete:
+                self._sessions.pop(sid, None)
+            return len(to_delete)

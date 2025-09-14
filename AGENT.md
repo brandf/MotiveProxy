@@ -4,6 +4,102 @@ This document establishes expectations for LLM coding agents working on the Moti
 
 > 🧭 **IMPORTANT: PLAN.md is the living source of truth.** Read it before starting any work, re-read it frequently during a task, and keep it up to date. No implementation should begin without a corresponding PLAN update.
 
+## Critical Architectural Principles
+
+### MotiveProxy Independence
+**MotiveProxy MUST remain completely independent from Motive.** This is a fundamental architectural requirement:
+
+- **Zero Dependencies**: MotiveProxy must have NO dependencies on Motive code, configs, or knowledge
+- **Zero References**: MotiveProxy code must NEVER mention, import, or reference Motive
+- **Independent Development**: Development of MotiveProxy and Motive must remain completely separate
+- **Generic Design**: MotiveProxy should be designed as a generic proxy that could work with any compatible client
+
+### Testing Strategy for External Connections
+When testing MotiveProxy with incoming connections, follow this priority order:
+
+#### A) Deterministic Integration Tests (PREFERRED)
+- Write deterministic integration tests with **mocked/canned connections**
+- Test specific features using **minimal test repositories**
+- Use controlled, predictable test scenarios
+- Ensure tests can run in CI/CD without external dependencies
+- Focus on testing MotiveProxy's behavior, not the external client
+
+#### B) Manual Integration Testing (SECONDARY)
+- Provide step-by-step instructions for human manual testing
+- Human connects both sessions while agent monitors MotiveProxy logs
+- Verify correct behavior through log analysis
+- Use this approach only when deterministic tests are insufficient
+
+**Always prefer approach A before B.** Manual testing should be a last resort for complex integration scenarios that cannot be adequately mocked.
+
+## Sandboxed Integration Tests (Must Read)
+
+Integration tests MUST be fast, deterministic, and completely isolated from external systems. The goals are: no real network, no real services, no long sleeps, and predictable outcomes in CI.
+
+- **Why this matters**
+  - **Speed**: Slow tests block iteration and mask real regressions
+  - **Determinism**: Flaky tests erode trust and waste time
+  - **Isolation**: CI must never depend on real services or ports
+
+- **Hard rules for sandboxed integration tests**
+  - **Use in-process ASGI clients**: Test via FastAPI/Starlette without starting a real server
+  - **Never make real network calls**: No sockets, ports, or external services
+  - **Short timeouts in tests**: Override protocol timeouts to ≤ 200ms so unpaired requests return quickly
+  - **No long sleeps**: Replace `time.sleep` with tiny async delays just to yield (e.g., `await asyncio.sleep(0.01)`) when sequencing is needed
+  - **Deterministic ordering**: Use controlled scheduling instead of timing-based assumptions
+
+- **Recommended patterns**
+  - **ASGI client (sync)**
+    ```python
+    from fastapi.testclient import TestClient
+    from motive_proxy.app import create_app
+
+    app = create_app()
+    client = TestClient(app)
+    resp = client.post("/v1/chat/completions", json={"model": "s1", "messages": [{"role": "user", "content": "hi"}]})
+    assert resp.status_code in [200, 408]
+    ```
+
+  - **ASGI client (async, fully in-process)**
+    ```python
+    import httpx, asyncio
+    from motive_proxy.app import create_app
+
+    app = create_app()
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post("/v1/chat/completions", json={"model": "s1", "messages": [{"role": "user", "content": "hi"}]})
+        assert r.status_code in [200, 408]
+    ```
+
+  - **Force short protocol timeouts in tests**
+    The chat route holds requests open during handshake/turns. In tests, override the session timeouts so unpaired calls return quickly.
+    ```python
+    import pytest
+    from motive_proxy.session_manager import SessionManager
+    import motive_proxy.routes.chat_completions as cc
+
+    @pytest.fixture(autouse=True)
+    def fast_timeouts():
+        # Ensure all tests use short timeouts (≤200ms)
+        cc._session_manager = SessionManager(handshake_timeout_seconds=0.2, turn_timeout_seconds=0.2)
+        yield
+    ```
+
+- **Do / Don’t**
+  - **Do**: Patch timeouts low in tests (≤ 200ms)
+  - **Do**: Use in-process ASGI clients (no real network)
+  - **Do**: Use tiny async sleeps (≤ 50ms) only to sequence concurrent tasks
+  - **Don’t**: Start uvicorn or bind to real ports in tests
+  - **Don’t**: Depend on external services or the Internet
+  - **Don’t**: Use long `sleep` to “wait it out”
+
+- **Checklist for any new integration test**
+  - [ ] Uses in-process ASGI client (sync or async)
+  - [ ] Overrides protocol timeouts to be short
+  - [ ] No real sockets, ports, or external calls
+  - [ ] Deterministic ordering without long sleeps
+  - [ ] Finishes in under 1 second locally and in CI
+
 ## Core TDD Workflow
 
 When adding features or fixing bugs, follow this **mandatory workflow**:
@@ -12,6 +108,8 @@ When adding features or fixing bugs, follow this **mandatory workflow**:
 - **For bugs**: Identify the root cause, not just symptoms
 - **For features**: Ask clarifying questions if requirements are unclear
 - **Always**: Understand the "why" before implementing the "how"
+
+> Operational rule: Do not pause to confirm next steps if the plan is clear. Follow `PLAN.md` autonomously. Only ask for guidance if blocked by missing context, ambiguous requirements, or external dependencies that cannot be mocked.
 
 ### 1. Red Phase - Write Tests First
 - Write test(s) for the expected behavior

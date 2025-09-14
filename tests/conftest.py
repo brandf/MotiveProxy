@@ -10,6 +10,21 @@ from httpx import AsyncClient
 from motive_proxy.app import create_app
 
 
+@pytest.fixture(autouse=True)
+def fast_timeouts():
+    """Force short protocol timeouts for fast, deterministic tests.
+
+    Ensures unpaired requests return 408 quickly during handshake/turn waits.
+    """
+    from motive_proxy.session_manager import SessionManager
+    import motive_proxy.routes.chat_completions as cc
+
+    cc._session_manager = SessionManager(
+        handshake_timeout_seconds=0.2,
+        turn_timeout_seconds=0.2,
+    )
+    yield
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for the test session."""
@@ -21,7 +36,14 @@ def event_loop():
 @pytest.fixture
 def app():
     """Create a test FastAPI application."""
-    return create_app()
+    app = create_app()
+    # Manually initialize session manager for tests since lifespan isn't triggered
+    from motive_proxy.session_manager import SessionManager
+    app.state.session_manager = SessionManager(
+        handshake_timeout_seconds=0.2,
+        turn_timeout_seconds=0.2,
+    )
+    return app
 
 
 @pytest.fixture

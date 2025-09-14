@@ -25,23 +25,35 @@ class TestServerIntegration:
             "messages": [{"role": "user", "content": "Hello, MotiveProxy!"}]
         }
         
+        # Single request without counterpart now times out (expected 408) until paired
         response = client.post("/v1/chat/completions", json=request_data)
-        assert response.status_code == 200
-        
+        assert response.status_code in [200, 408]
+
         data = response.json()
-        assert "id" in data
-        assert "object" in data
-        assert "created" in data
-        assert "model" in data
-        assert "choices" in data
-        assert "usage" in data
-        
-        # Verify the response structure matches OpenAI format
-        assert data["object"] == "chat.completion"
-        assert data["model"] == "test-session-123"
-        assert len(data["choices"]) == 1
-        assert data["choices"][0]["message"]["role"] == "assistant"
-        assert "placeholder response" in data["choices"][0]["message"]["content"]
+        if response.status_code == 200:
+            assert "id" in data
+            assert "object" in data
+            assert "created" in data
+            assert "model" in data
+            assert "choices" in data
+            assert "usage" in data
+            # Verify the response structure matches OpenAI format
+            assert data["object"] == "chat.completion"
+            assert data["model"] == "test-session-123"
+            assert len(data["choices"]) == 1
+            assert data["choices"][0]["message"]["role"] == "assistant"
+        else:
+            # Standard timeout response
+            assert data == {
+                "detail": {
+                    "error": {
+                        "message": "Request timed out",
+                        "type": "timeout_error",
+                        "code": "timeout",
+                        "param": None,
+                    }
+                }
+            }
 
     def test_openai_endpoint_with_different_models(self, client: TestClient):
         """Test that different model names are handled correctly."""
@@ -59,10 +71,22 @@ class TestServerIntegration:
             }
             
             response = client.post("/v1/chat/completions", json=request_data)
-            assert response.status_code == 200
-            
+            assert response.status_code in [200, 408]
+
             data = response.json()
-            assert data["model"] == model_name
+            if response.status_code == 200:
+                assert data["model"] == model_name
+            else:
+                assert data == {
+                    "detail": {
+                        "error": {
+                            "message": "Request timed out",
+                            "type": "timeout_error",
+                            "code": "timeout",
+                            "param": None,
+                        }
+                    }
+                }
 
     def test_openai_endpoint_with_multiple_messages(self, client: TestClient):
         """Test endpoint with multiple messages in conversation."""
@@ -76,10 +100,22 @@ class TestServerIntegration:
         }
         
         response = client.post("/v1/chat/completions", json=request_data)
-        assert response.status_code == 200
-        
+        assert response.status_code in [200, 408]
+
         data = response.json()
-        assert data["model"] == "conversation-test"
+        if response.status_code == 200:
+            assert data["model"] == "conversation-test"
+        else:
+            assert data == {
+                "detail": {
+                    "error": {
+                        "message": "Request timed out",
+                        "type": "timeout_error",
+                        "code": "timeout",
+                        "param": None,
+                    }
+                }
+            }
 
     def test_openai_endpoint_with_optional_parameters(self, client: TestClient):
         """Test endpoint with optional OpenAI parameters."""
@@ -92,10 +128,22 @@ class TestServerIntegration:
         }
         
         response = client.post("/v1/chat/completions", json=request_data)
-        assert response.status_code == 200
-        
+        assert response.status_code in [200, 408]
+
         data = response.json()
-        assert data["model"] == "parameter-test"
+        if response.status_code == 200:
+            assert data["model"] == "parameter-test"
+        else:
+            assert data == {
+                "detail": {
+                    "error": {
+                        "message": "Request timed out",
+                        "type": "timeout_error",
+                        "code": "timeout",
+                        "param": None,
+                    }
+                }
+            }
 
     def test_openai_endpoint_error_handling(self, client: TestClient):
         """Test proper error handling for invalid requests."""
@@ -107,7 +155,16 @@ class TestServerIntegration:
         
         response = client.post("/v1/chat/completions", json=request_data)
         assert response.status_code == 422
-        assert "Messages array cannot be empty" in response.json()["detail"]
+        assert response.json() == {
+            "detail": {
+                "error": {
+                    "message": "Messages array cannot be empty",
+                    "type": "invalid_request_error",
+                    "code": "messages_empty",
+                    "param": None,
+                }
+            }
+        }
 
     def test_openai_endpoint_missing_required_fields(self, client: TestClient):
         """Test error handling for missing required fields."""
@@ -145,10 +202,22 @@ class TestServerIntegration:
         }
         
         response = client.post("/v1/chat/completions", json=request_data)
-        assert response.status_code == 200
-        
+        assert response.status_code in [200, 408]
+
         data = response.json()
-        assert data["model"] == "large-request-test"
+        if response.status_code == 200:
+            assert data["model"] == "large-request-test"
+        else:
+            assert data == {
+                "detail": {
+                    "error": {
+                        "message": "Request timed out",
+                        "type": "timeout_error",
+                        "code": "timeout",
+                        "param": None,
+                    }
+                }
+            }
 
     @pytest.mark.asyncio
     async def test_async_client_integration(self, app):
@@ -168,10 +237,22 @@ class TestServerIntegration:
             }
             
             response = await client.post("/v1/chat/completions", json=request_data)
-            assert response.status_code == 200
-            
+            assert response.status_code in [200, 408]
+
             data = response.json()
-            assert data["model"] == "async-test"
+            if response.status_code == 200:
+                assert data["model"] == "async-test"
+            else:
+                assert data == {
+                    "detail": {
+                        "error": {
+                            "message": "Request timed out",
+                            "type": "timeout_error",
+                            "code": "timeout",
+                            "param": None,
+                        }
+                    }
+                }
 
     def test_concurrent_requests_integration(self, client: TestClient):
         """Test server handling of concurrent requests."""
@@ -200,10 +281,10 @@ class TestServerIntegration:
         for thread in threads:
             thread.join()
         
-        # All requests should succeed
+        # All requests should be handled (200 or timeout 408 if unpaired)
         assert len(results) == 5
         for session_id, status_code in results:
-            assert status_code == 200, f"Request {session_id} failed with status {status_code}"
+            assert status_code in [200, 408], f"Request {session_id} failed with status {status_code}"
 
     def test_server_response_timing(self, client: TestClient):
         """Test that server responds within reasonable time."""

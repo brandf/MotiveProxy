@@ -20,6 +20,14 @@ class TestApp:
         assert response.status_code == 200
         assert response.json() == {"status": "healthy"}
 
+    def test_admin_sessions_endpoint(self, client: TestClient):
+        """Test that the admin sessions endpoint returns a list of sessions."""
+        response = client.get("/admin/sessions")
+        assert response.status_code == 200
+        data = response.json()
+        assert "sessions" in data
+        assert isinstance(data["sessions"], list)
+
     def test_openai_chat_completions_endpoint_exists(self, client: TestClient):
         """Test that the OpenAI chat completions endpoint exists."""
         # This should return 422 (validation error) rather than 404 (not found)
