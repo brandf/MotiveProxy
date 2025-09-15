@@ -63,6 +63,17 @@ class ScenarioManager:
             expected_duration=8.0
         )
         
+        # LLM conversation scenario (minimal steps since LLM logic handles the conversation)
+        scenarios["llm-conversation"] = E2ETestScenario(
+            name="llm-conversation",
+            description="LLM-to-LLM conversation through MotiveProxy",
+            steps=[
+                {"client": "A", "action": "connect", "message": "LLM conversation start"},
+                {"client": "B", "action": "connect", "message": "LLM conversation start"}
+            ],
+            expected_duration=30.0  # LLM conversations take longer
+        )
+        
         return scenarios
     
     def get_scenario(self, name: str) -> E2ETestScenario:

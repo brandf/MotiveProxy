@@ -633,6 +633,54 @@ response = openai_client.chat.completions.create(
 4. Provide confidence analysis reports
 5. Use durable testing methods (pytest, not curl)
 
+## 🧪 E2E Testing with Real LLMs
+
+MotiveProxy includes powerful E2E testing capabilities that allow you to test real LLM-to-LLM conversations through the proxy.
+
+### 🚀 Quick Setup
+
+1. **Set up environment file:**
+   ```bash
+   python setup_env.py
+   ```
+
+2. **Configure API keys in `.env`:**
+   ```bash
+   # Copy template and edit
+   cp env.template .env
+   # Edit .env and add your API keys
+   ```
+
+3. **Run LLM-to-LLM conversation test:**
+   ```bash
+   motive-proxy-e2e --use-llms
+   ```
+
+### 🔑 Supported LLM Providers
+
+- **Google Gemini** (recommended for testing)
+- **OpenAI GPT** 
+- **Anthropic Claude**
+- **Cohere Command**
+
+### 🎯 Example: Two Different Models Talking
+
+```bash
+# Gemini vs Claude conversation
+motive-proxy-e2e --use-llms \
+  --llm-provider-a google --llm-model-a gemini-2.0-flash-exp \
+  --llm-provider-b anthropic --llm-model-b claude-3-sonnet \
+  --conversation-prompt "Let's debate the future of AI safety"
+```
+
+### 📊 Test Results
+
+E2E tests generate comprehensive reports in `./e2e_test_results/` including:
+- Conversation logs
+- Performance metrics  
+- Error analysis
+- LLM response quality
+
 ## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development setup and modern Python practices.

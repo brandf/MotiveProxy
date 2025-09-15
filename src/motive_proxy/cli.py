@@ -17,7 +17,13 @@ def cli():
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
 @click.option("--log-level", default=None, help="Logging level (debug, info, warning, error)")
 @click.option("--debug", is_flag=True, help="Enable debug mode")
-def run(host: str, port: int, reload: bool, log_level: str, debug: bool):
+@click.option("--handshake-timeout-seconds", default=None, type=float, help="Handshake timeout in seconds")
+@click.option("--turn-timeout-seconds", default=None, type=float, help="Turn timeout in seconds")
+@click.option("--session-ttl-seconds", default=None, type=float, help="Session TTL in seconds")
+@click.option("--max-sessions", default=None, type=int, help="Maximum concurrent sessions")
+def run(host: str, port: int, reload: bool, log_level: str, debug: bool, 
+        handshake_timeout_seconds: float, turn_timeout_seconds: float, 
+        session_ttl_seconds: float, max_sessions: int):
     """MotiveProxy - A bidirectional proxy for OpenAI-compatible clients."""
     settings = get_settings()
     
@@ -31,6 +37,14 @@ def run(host: str, port: int, reload: bool, log_level: str, debug: bool):
     if debug:
         settings.debug = True
         settings.log_level = "DEBUG"
+    if handshake_timeout_seconds is not None:
+        settings.handshake_timeout_seconds = handshake_timeout_seconds
+    if turn_timeout_seconds is not None:
+        settings.turn_timeout_seconds = turn_timeout_seconds
+    if session_ttl_seconds is not None:
+        settings.session_ttl_seconds = session_ttl_seconds
+    if max_sessions is not None:
+        settings.max_sessions = max_sessions
     
     # Display effective configuration
     click.echo("Starting MotiveProxy with configuration:")

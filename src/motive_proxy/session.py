@@ -38,10 +38,13 @@ class Session:
     _next_expected: Side = field(default=Side.A, init=False)
     _pending_for_a: Optional[asyncio.Future[str]] = field(default=None, init=False)
     _pending_for_b: Optional[asyncio.Future[str]] = field(default=None, init=False)
+    # Buffers to handle out-of-order sends when counterpart isn't yet waiting
+    _buffer_for_a: Optional[str] = field(default=None, init=False, repr=False)
+    _buffer_for_b: Optional[str] = field(default=None, init=False, repr=False)
     _created_ts: float = field(default_factory=lambda: time.time(), init=False, repr=False)
     _last_activity_ts: float = field(default_factory=lambda: time.time(), init=False, repr=False)
 
-    async def process_request(self, content: str) -> str:
+    async def process_request(self, content: str, sender_side: Optional[Side] = None) -> str:
         """Process an incoming request content and wait for counterpart reply.
 
         Returns the counterpart's next message content or raises asyncio.TimeoutError.
@@ -64,10 +67,10 @@ class Session:
                 pass
                 # release lock implicitly at end of block
             elif not self._side_b_connected:
-                # Second unique request → becomes B first; deliver to A and wait for A's next
+                # Second unique request → becomes B first; deliver B's content to A and wait for A's next
                 self._side_b_connected = True
                 if self._pending_for_a and not self._pending_for_a.done():
-                    self._pending_for_a.set_result(content)
+                    self._pending_for_a.set_result(content)  # A gets B's content
                 # Now B waits for A's next
                 self._pending_for_b = loop.create_future()
                 wait_future = self._pending_for_b
@@ -75,22 +78,43 @@ class Session:
                 self._next_expected = Side.A
             else:
                 # Both connected → alternate by expected side
-                if self._next_expected == Side.A:
+                side_to_treat = sender_side or self._next_expected
+                if side_to_treat == Side.A:
                     # Treat this request as coming from A
                     if self._pending_for_b and not self._pending_for_b.done():
                         self._pending_for_b.set_result(content)
-                    # Now A waits for B's next
-                    self._pending_for_a = loop.create_future()
-                    wait_future = self._pending_for_a
+                    else:
+                        # Counterpart not waiting yet; buffer for B
+                        self._buffer_for_b = content
+                    # A waits for B's next message (serve from buffer if present)
+                    if self._buffer_for_a is not None:
+                        buffered = self._buffer_for_a
+                        self._buffer_for_a = None
+                        fut = loop.create_future()
+                        fut.set_result(buffered)
+                        wait_future = fut
+                    else:
+                        self._pending_for_a = loop.create_future()
+                        wait_future = self._pending_for_a
                     timeout = self.turn_timeout_seconds
                     self._next_expected = Side.B
                 else:
                     # Treat this request as coming from B
                     if self._pending_for_a and not self._pending_for_a.done():
                         self._pending_for_a.set_result(content)
-                    # Now B waits for A's next
-                    self._pending_for_b = loop.create_future()
-                    wait_future = self._pending_for_b
+                    else:
+                        # Counterpart not waiting yet; buffer for A
+                        self._buffer_for_a = content
+                    # B waits for A's next message (serve from buffer if present)
+                    if self._buffer_for_b is not None:
+                        buffered = self._buffer_for_b
+                        self._buffer_for_b = None
+                        fut = loop.create_future()
+                        fut.set_result(buffered)
+                        wait_future = fut
+                    else:
+                        self._pending_for_b = loop.create_future()
+                        wait_future = self._pending_for_b
                     timeout = self.turn_timeout_seconds
                     self._next_expected = Side.A
 

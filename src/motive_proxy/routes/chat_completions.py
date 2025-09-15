@@ -28,10 +28,24 @@ async def chat_completions(request: ChatCompletionRequest, fastapi_request: Requ
     
     # Extract request context for logging
     request_context = extract_request_context(fastapi_request)
+    # Support model format "<session_id>|<side>" so clients can identify side explicitly
+    raw_model = request.model
+    session_id = raw_model
+    sender_side = None
+    if isinstance(raw_model, str) and "|" in raw_model:
+        try:
+            session_id, side_str = raw_model.split("|", 1)
+            from motive_proxy.session import Side
+            sender_side = Side(side_str) if side_str in ("A", "B") else None
+        except Exception:
+            session_id = raw_model
+            sender_side = None
+
     request_context.update({
         "correlation_id": correlation_id,
-        "session_id": request.model,
+        "session_id": session_id,
         "message_count": len(request.messages),
+        "sender_side": str(sender_side) if sender_side else None,
     })
     
     logger.info("Chat completion request received", **request_context)
@@ -63,8 +77,8 @@ async def chat_completions(request: ChatCompletionRequest, fastapi_request: Requ
         logger.info("Streaming request detected", **request_context)
         
         async def generate_stream():
-            streaming_session = StreamingSession(request.model, request.model)
-            session = await session_manager.get_or_create(request.model)
+            streaming_session = StreamingSession(session_id, session_id)
+            session = await session_manager.get_or_create(session_id)
             
             async for chunk in streaming_session.process_streaming_request(content, session):
                 yield chunk
@@ -83,11 +97,11 @@ async def chat_completions(request: ChatCompletionRequest, fastapi_request: Requ
         )
     
     # Non-streaming response (existing logic)
-    with time_operation("session_processing", {"session_id": request.model}):
-        session = await session_manager.get_or_create(request.model)
+    with time_operation("session_processing", {"session_id": session_id}):
+        session = await session_manager.get_or_create(session_id)
         
         try:
-            counterpart_message = await session.process_request(content)
+            counterpart_message = await session.process_request(content, sender_side=sender_side)
             logger.info("Message processed successfully", 
                        **request_context,
                        response_length=len(counterpart_message))
@@ -120,7 +134,7 @@ async def chat_completions(request: ChatCompletionRequest, fastapi_request: Requ
             )
 
     response = ChatCompletionResponse.build(
-        model=request.model, prompt=content, completion=counterpart_message
+        model=session_id, prompt=content, completion=counterpart_message
     )
     
     logger.info("Chat completion response sent", 

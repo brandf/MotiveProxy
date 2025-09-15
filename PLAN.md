@@ -396,6 +396,15 @@ Errors
 - **Message Compression**: Automatic compression for large messages
 - **Message Validation**: Advanced content validation and sanitization
 - **Message Replay**: Ability to replay conversation history
+- **WebSocket Stateful Connections**: Persistent WebSocket connections for real-time communication
+  - **Stateful Context Management**: Server-side conversation state management
+  - **Reduced Token Usage**: Only send new messages, not full conversation history
+  - **Real-time Updates**: Instant message delivery without polling
+  - **Connection Persistence**: Maintain connections across multiple turns
+  - **Context Compression**: Server-side context window management
+  - **Bi-directional Streaming**: True real-time bidirectional communication
+  - **Connection Pooling**: Efficient WebSocket connection management
+  - **Graceful Degradation**: Fallback to HTTP for WebSocket-unsupported clients
 
 ### M_Integration_Ecosystem: Integration & Ecosystem
 - **Communication Bridge Protocols**: Multi-platform communication bridges for async games

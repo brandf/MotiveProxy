@@ -26,6 +26,15 @@ from .log_collector import LogCollector
 @click.option('--server-port', default=8000, help='Server port')
 @click.option('--timeout', default=30.0, help='Request timeout in seconds')
 @click.option('--validate-responses', is_flag=True, help='Validate response format')
+# LLM configuration options
+@click.option('--use-llms', is_flag=True, help='Use real LLMs instead of canned responses')
+@click.option('--llm-provider-a', default='google', type=click.Choice(['openai', 'anthropic', 'google', 'cohere']), help='LLM provider for Client A')
+@click.option('--llm-model-a', default='gemini-2.5-flash', help='LLM model for Client A')
+@click.option('--llm-provider-b', default='google', type=click.Choice(['openai', 'anthropic', 'google', 'cohere']), help='LLM provider for Client B')
+@click.option('--llm-model-b', default='gemini-2.5-flash', help='LLM model for Client B')
+@click.option('--conversation-prompt', default='Hello! Let\'s have a conversation about artificial intelligence.', help='Initial conversation prompt')
+@click.option('--max-context-messages', default=10, help='Maximum context messages to keep for LLM')
+@click.option('--system-prompt', help='System prompt for LLM conversation context')
 def e2e_test_command(
     scenario: str,
     turns: int,
@@ -36,7 +45,15 @@ def e2e_test_command(
     server_host: str,
     server_port: int,
     timeout: float,
-    validate_responses: bool
+    validate_responses: bool,
+    use_llms: bool,
+    llm_provider_a: str,
+    llm_model_a: str,
+    llm_provider_b: str,
+    llm_model_b: str,
+    conversation_prompt: str,
+    max_context_messages: int,
+    system_prompt: Optional[str]
 ):
     """E2E testing automation for MotiveProxy.
     
@@ -69,7 +86,15 @@ def e2e_test_command(
             server_host=server_host,
             server_port=server_port,
             timeout=timeout,
-            validate_responses=validate_responses
+            validate_responses=validate_responses,
+            use_llms=use_llms,
+            llm_provider_a=llm_provider_a,
+            llm_model_a=llm_model_a,
+            llm_provider_b=llm_provider_b,
+            llm_model_b=llm_model_b,
+            conversation_prompt=conversation_prompt,
+            max_context_messages=max_context_messages,
+            system_prompt=system_prompt
         ))
         
         if result:
@@ -92,7 +117,15 @@ async def _run_e2e_test(
     server_host: str,
     server_port: int,
     timeout: float,
-    validate_responses: bool
+    validate_responses: bool,
+    use_llms: bool,
+    llm_provider_a: str,
+    llm_model_a: str,
+    llm_provider_b: str,
+    llm_model_b: str,
+    conversation_prompt: str,
+    max_context_messages: int,
+    system_prompt: Optional[str]
 ) -> bool:
     """Run the actual E2E test with subprocess orchestration."""
     
@@ -103,17 +136,20 @@ async def _run_e2e_test(
     client_processes = []
     
     try:
-        # Get scenario
-        try:
-            test_scenario = scenario_manager.get_scenario(scenario)
-        except ValueError as e:
-            print(f"❌ {e}")
-            return False
-            
-        log_collector.add_log("e2e-test", "info", f"Starting scenario: {scenario}")
+        # Get scenario (only for non-LLM tests)
+        test_scenario = None
+        if not use_llms:
+            try:
+                test_scenario = scenario_manager.get_scenario(scenario)
+            except ValueError as e:
+                print(f"❌ {e}")
+                return False
+            log_collector.add_log("e2e-test", "info", f"Starting scenario: {scenario}")
+        else:
+            log_collector.add_log("e2e-test", "info", "Starting LLM-to-LLM conversation")
         
         # Start MotiveProxy server (real server startup)
-        server_process = await _start_server(server_host, server_port)
+        server_process = await _start_server(server_host, server_port, use_llms)
         log_collector.add_log("e2e-test", "info", f"Started server on {server_host}:{server_port}")
         
         # Wait for server to be ready
@@ -124,6 +160,11 @@ async def _run_e2e_test(
         session_results = []
         server_url = f"http://{server_host}:{server_port}"
         
+        # For LLM runs, ensure clients have long HTTP timeouts too
+        client_timeout = timeout
+        if use_llms and (client_timeout is None or client_timeout < 240):
+            client_timeout = 240.0
+
         for i in range(concurrent):
             session_id = f"test-session-{i}"
             result = await _run_session_with_subprocesses(
@@ -131,7 +172,17 @@ async def _run_e2e_test(
                 scenario=test_scenario,
                 server_url=server_url,
                 output_path=output_path,
-                log_collector=log_collector
+                log_collector=log_collector,
+                use_llms=use_llms,
+                llm_provider_a=llm_provider_a,
+                llm_model_a=llm_model_a,
+                llm_provider_b=llm_provider_b,
+                llm_model_b=llm_model_b,
+                conversation_prompt=conversation_prompt,
+                turns=turns,
+                max_context_messages=max_context_messages,
+                system_prompt=system_prompt,
+                client_timeout=client_timeout
             )
             session_results.append(result)
         
@@ -167,25 +218,27 @@ async def _run_e2e_test(
         await _cleanup_processes(server_process, client_processes)
 
 
-async def _start_server(host: str, port: int) -> subprocess.Popen:
+async def _start_server(host: str, port: int, use_llms: bool = False) -> subprocess.Popen:
     """Start MotiveProxy server in background."""
     cmd = [sys.executable, "-m", "motive_proxy.cli", "run", "--host", host, "--port", str(port)]
+    
+    # For LLM tests, use longer timeouts to accommodate LLM response times
+    if use_llms:
+        cmd.extend([
+            "--handshake-timeout-seconds", "120",
+            "--turn-timeout-seconds", "240"
+        ])
+    
     print(f"Starting server: {' '.join(cmd)}")
     
-    # Windows-specific subprocess handling
+    # Inherit parent's stdio to avoid PIPE buffer blocking
     if sys.platform == "win32":
         return subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE,
+            cmd,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
     else:
-        return subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE
-        )
+        return subprocess.Popen(cmd)
 
 
 async def _wait_for_server(host: str, port: int, max_attempts: int = 10) -> None:
@@ -216,10 +269,20 @@ async def _wait_for_server(host: str, port: int, max_attempts: int = 10) -> None
 
 async def _run_session_with_subprocesses(
     session_id: str,
-    scenario: E2ETestScenario,
+    scenario: Optional[E2ETestScenario],
     server_url: str,
     output_path: Path,
-    log_collector: LogCollector
+    log_collector: LogCollector,
+    use_llms: bool = False,
+    llm_provider_a: str = 'google',
+    llm_model_a: str = 'gemini-2.5-flash',
+    llm_provider_b: str = 'google',
+    llm_model_b: str = 'gemini-2.5-flash',
+    conversation_prompt: str = 'Hello! How are you?',
+    turns: int = 5,
+    max_context_messages: int = 10,
+    system_prompt: Optional[str] = None,
+    client_timeout: float = 60.0
 ) -> Dict[str, Any]:
     """Run a session test with independent client subprocesses."""
     
@@ -235,31 +298,48 @@ async def _run_session_with_subprocesses(
             "--name=ClientA",
             f"--server-url={server_url}",
             f"--session-id={session_id}",
-            f"--scenario={scenario.name}",
             "--role=A",
             f"--output={output_path}"
         ]
+        
+        # Add LLM parameters if using LLMs, otherwise add scenario
+        if use_llms:
+            client_a_cmd.extend([
+                "--use-llm",
+                f"--llm-provider={llm_provider_a}",
+                f"--llm-model={llm_model_a}",
+                f"--conversation-prompt={conversation_prompt}",
+                f"--turns={turns}",
+                f"--max-context-messages={max_context_messages}",
+                f"--timeout={client_timeout}"
+            ])
+            if system_prompt:
+                client_a_cmd.append(f"--system-prompt={system_prompt}")
+        else:
+            if scenario:
+                client_a_cmd.append(f"--scenario={scenario.name}")
+            else:
+                # This shouldn't happen, but handle gracefully
+                print(f"Warning: No scenario provided for non-LLM test")
         print(f"Starting Client A: {' '.join(client_a_cmd)}")
         
         # Windows-specific subprocess handling
         if sys.platform == "win32":
             client_a_process = subprocess.Popen(
-                client_a_cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
+                client_a_cmd,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
             )
         else:
-            client_a_process = subprocess.Popen(
-                client_a_cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE
-            )
+            client_a_process = subprocess.Popen(client_a_cmd)
         client_processes.append(client_a_process)
         
         # Wait for Client A to establish connection
         print(f"Waiting for Client A to connect...")
-        await asyncio.sleep(2.0)
+        if use_llms:
+            # For LLM tests, reduce delay to prevent handshake timeout
+            await asyncio.sleep(0.5)
+        else:
+            await asyncio.sleep(2.0)
         
         # Start Client B
         client_b_cmd = [
@@ -267,26 +347,39 @@ async def _run_session_with_subprocesses(
             "--name=ClientB",
             f"--server-url={server_url}",
             f"--session-id={session_id}",
-            f"--scenario={scenario.name}",
             "--role=B",
             f"--output={output_path}"
         ]
+        
+        # Add LLM parameters if using LLMs, otherwise add scenario
+        if use_llms:
+            client_b_cmd.extend([
+                "--use-llm",
+                f"--llm-provider={llm_provider_b}",
+                f"--llm-model={llm_model_b}",
+                f"--conversation-prompt={conversation_prompt}",
+                f"--turns={turns}",
+                f"--max-context-messages={max_context_messages}",
+                f"--timeout={client_timeout}"
+            ])
+            if system_prompt:
+                client_b_cmd.append(f"--system-prompt={system_prompt}")
+        else:
+            if scenario:
+                client_b_cmd.append(f"--scenario={scenario.name}")
+            else:
+                # This shouldn't happen, but handle gracefully
+                print(f"Warning: No scenario provided for non-LLM test")
         print(f"Starting Client B: {' '.join(client_b_cmd)}")
         
         # Windows-specific subprocess handling
         if sys.platform == "win32":
             client_b_process = subprocess.Popen(
-                client_b_cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
+                client_b_cmd,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
             )
         else:
-            client_b_process = subprocess.Popen(
-                client_b_cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE
-            )
+            client_b_process = subprocess.Popen(client_b_cmd)
         client_processes.append(client_b_process)
         
         # Wait for both clients to complete
@@ -302,12 +395,20 @@ async def _run_session_with_subprocesses(
         
         success = (client_a_results is not None and client_b_results is not None)
         
+        steps_completed = 0
+        try:
+            # In scenario mode, include number of steps for reporting
+            if scenario is not None and hasattr(scenario, "steps"):
+                steps_completed = len(scenario.steps)
+        except Exception:
+            steps_completed = 0
+        
         return {
             "session_id": session_id,
             "status": "success" if success else "failed",
             "client_a_results": client_a_results,
             "client_b_results": client_b_results,
-            "steps_completed": len(scenario.steps)
+            "steps_completed": steps_completed
         }
         
     except Exception as e:
@@ -324,9 +425,11 @@ async def _wait_for_client(process: subprocess.Popen, client_name: str, log_coll
     """Wait for a client process to complete and log its output."""
     try:
         # Wait for the process to complete with timeout
+        # Use longer timeout for LLM tests since they take more time
+        timeout_seconds = 300.0  # 5 minutes for LLM conversations
         return_code = await asyncio.wait_for(
             asyncio.to_thread(process.wait),
-            timeout=30.0
+            timeout=timeout_seconds
         )
         
         if return_code == 0:
