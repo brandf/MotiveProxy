@@ -32,6 +32,10 @@ dependencies = [
     "pydantic>=2.0.0,<3.0.0",
     "pydantic-settings>=2.0.0",
     "psutil>=5.9.0",
+    # E2E Testing dependencies
+    "langchain>=0.1.0",
+    "langchain-openai>=0.1.0",
+    "langchain-core>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +53,7 @@ dev = [
 
 [project.scripts]
 motive-proxy = "motive_proxy.cli:main"
+motive-proxy-e2e = "motive_proxy.testing.e2e_test_runner:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -103,6 +108,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests (excluded from default pytest run)",
 ]
 asyncio_mode = "auto"
 

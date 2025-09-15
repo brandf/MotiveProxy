@@ -32,21 +32,95 @@ When testing MotiveProxy with incoming connections, follow this priority order:
 
 **Always prefer approach A before B.** Manual testing should be a last resort for complex integration scenarios that cannot be adequately mocked.
 
-## Sandboxed Integration Tests (Must Read)
+## Testing Pyramid Strategy (Must Read)
 
-Integration tests MUST be fast, deterministic, and completely isolated from external systems. The goals are: no real network, no real services, no long sleeps, and predictable outcomes in CI.
+MotiveProxy requires a comprehensive testing strategy with multiple tiers, each serving specific purposes. All tests must be fast, deterministic, and appropriate for their tier.
 
-- **Why this matters**
-  - **Speed**: Slow tests block iteration and mask real regressions
-  - **Determinism**: Flaky tests erode trust and waste time
-  - **Isolation**: CI must never depend on real services or ports
+### Testing Pyramid Overview
 
-- **Hard rules for sandboxed integration tests**
-  - **Use in-process ASGI clients**: Test via FastAPI/Starlette without starting a real server
-  - **Never make real network calls**: No sockets, ports, or external services
-  - **Short timeouts in tests**: Override protocol timeouts to ≤ 200ms so unpaired requests return quickly
-  - **No long sleeps**: Replace `time.sleep` with tiny async delays just to yield (e.g., `await asyncio.sleep(0.01)`) when sequencing is needed
-  - **Deterministic ordering**: Use controlled scheduling instead of timing-based assumptions
+```
+    🔺 E2E Tests (Real Network)
+   🔺🔺 Integration Tests (Sandboxed)  
+  🔺🔺🔺 Unit Tests (Isolated)
+```
+
+### Tier 1: Unit Tests ⭐⭐⭐⭐⭐
+**Purpose**: Test individual components in complete isolation
+- **Scope**: Single functions, classes, methods
+- **Speed**: < 10ms per test
+- **Dependencies**: None (pure functions) or mocked dependencies
+- **Network**: None
+- **Examples**: Parser logic, validation functions, data transformations
+
+### Tier 2: Sandboxed Integration Tests ⭐⭐⭐⭐
+**Purpose**: Test component interactions without external dependencies
+- **Scope**: Multiple components working together
+- **Speed**: < 100ms per test
+- **Dependencies**: Mocked/canned responses
+- **Network**: In-process ASGI clients only
+- **Examples**: HTTP request/response flows, WebSocket handshakes, session management
+
+### Tier 3: E2E Tests ⭐⭐⭐
+**Purpose**: Validate complete user workflows with real network
+- **Scope**: Full system with real clients and servers
+- **Speed**: < 30 seconds per test
+- **Dependencies**: Real MotiveProxy instance, real test clients
+- **Network**: Real TCP/WebSocket connections
+- **Examples**: Complete conversation flows, multi-client scenarios, error handling
+
+### Hard Rules for Each Tier
+
+#### Unit Tests (Tier 1)
+- **Zero external dependencies**: No imports of network libraries
+- **Pure functions preferred**: Test logic without side effects
+- **Mock everything**: Use `unittest.mock` for any external calls
+- **Fast execution**: Must run in milliseconds
+
+#### Sandboxed Integration Tests (Tier 2)
+- **Use in-process ASGI clients**: Test via FastAPI/Starlette without starting a real server
+- **Never make real network calls**: No sockets, ports, or external services
+- **Short timeouts in tests**: Override protocol timeouts to ≤ 200ms so unpaired requests return quickly
+- **No long sleeps**: Replace `time.sleep` with tiny async delays just to yield (e.g., `await asyncio.sleep(0.01)`) when sequencing is needed
+- **Deterministic ordering**: Use controlled scheduling instead of timing-based assumptions
+- **Canned responses**: Use predefined request/response pairs for external API calls
+
+#### E2E Tests (Tier 3)
+- **Real subprocesses**: Launch actual MotiveProxy and test client processes
+- **Real network**: Use actual TCP/WebSocket connections
+- **Timeout protection**: Set reasonable timeouts (5-30 seconds) to prevent hanging
+- **Cleanup required**: Always terminate subprocesses and clean up resources
+- **Separate from core**: E2E tests should be external tools, not part of core MotiveProxy
+
+### Critical Testing Workflow Lessons
+
+#### Test Suite Performance Standards ⭐⭐⭐⭐⭐
+**All pytest tests MUST be fast and deterministic:**
+- **Total suite time**: < 30 seconds for 100+ tests
+- **Individual test time**: < 100ms per test (preferably < 10ms)
+- **Zero flaky tests**: Tests must pass consistently in CI/CD
+- **Zero hanging tests**: No tests should wait indefinitely
+
+#### Test Suite Cleanup Protocol 🧹
+**When test suite becomes slow or unreliable:**
+1. **Identify slow tests**: Use `pytest --durations=10` to find bottlenecks
+2. **Categorize violations**: Separate E2E tests from pytest suite
+3. **Remove problematic tests**: Delete tests that violate sandboxing principles
+4. **Verify speed**: Ensure total suite runs in < 30 seconds
+5. **Document separation**: Move E2E tests to external tools
+
+#### Anti-Patterns to Avoid ❌
+- **Real subprocess tests in pytest**: Use external E2E tools instead
+- **Real network calls in pytest**: Use TestClient/ASGITransport
+- **Long sleeps in tests**: Use `await asyncio.sleep(0.01)` for sequencing
+- **Outdated test references**: Remove tests referencing deleted functionality
+- **Mixed test tiers**: Keep unit/integration/E2E tests properly separated
+
+#### Test Suite Health Metrics 📊
+**Monitor these metrics continuously:**
+- **Total execution time**: Should decrease over time, not increase
+- **Failure rate**: Should be 0% in CI/CD
+- **Test count**: Should grow with features, not shrink due to removals
+- **Warning count**: Should decrease over time
 
 - **Recommended patterns**
   - **ASGI client (sync)**
@@ -278,17 +352,27 @@ async def get_session(session_id: str) -> Optional[Session]:
 ### Run Tests
 ```bash
 # Run all tests
-inv test
+pytest
 
 # Run with coverage
-inv test-cov
+pytest --cov=motive_proxy
 
 # Run specific test file
 pytest tests/test_session_manager.py
 
 # Run specific test
 pytest tests/test_session_manager.py::TestSessionManager::test_create_session
+
+# Run with verbose output
+pytest -v
+
+# Run with verbose output and no capture (see print statements)
+pytest -v -s
 ```
+
+**⚠️ IMPORTANT: Always use `pytest` directly, NOT `python -m pytest`**
+- `pytest` - ✅ Fast, no manual approval needed
+- `python -m pytest` - ❌ Slow, requires manual approval, wastes time
 
 ### Code Quality
 ```bash
@@ -369,36 +453,36 @@ Before running the real application, **ALWAYS** provide a confidence analysis re
 ```markdown
 ## 🎯 Confidence Analysis Report
 
-### Overall Confidence: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+### Overall Confidence: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 
 ### Detailed Analysis:
 
-#### 🧪 Test Coverage Confidence: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+#### 🧪 Test Coverage Confidence: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 **What**: Extent to which the implementation is covered by tests
 **Why**: [Specific reasoning about test quality, coverage, and edge cases]
 **Improvement**: [What's needed to reach 5 stars]
 
-#### 🔧 Implementation Quality: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+#### 🔧 Implementation Quality: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 **What**: Code quality, architecture adherence, and best practices
 **Why**: [Specific reasoning about code structure, error handling, type hints]
 **Improvement**: [What's needed to reach 5 stars]
 
-#### 🐛 Bug Fix Confidence: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+#### 🐛 Bug Fix Confidence: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 **What**: Confidence that the root cause has been addressed
 **Why**: [Specific reasoning about the fix, testing, and edge cases]
 **Improvement**: [What's needed to reach 5 stars]
 
-#### 🚀 Feature Completeness: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+#### 🚀 Feature Completeness: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 **What**: Extent to which the feature meets all requirements
 **Why**: [Specific reasoning about requirement coverage and edge cases]
 **Improvement**: [What's needed to reach 5 stars]
 
-#### 🔄 Integration Confidence: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+#### 🔄 Integration Confidence: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 **What**: Confidence that changes integrate well with existing code
 **Why**: [Specific reasoning about compatibility, dependencies, and side effects]
 **Improvement**: [What's needed to reach 5 stars]
 
-#### 📚 Documentation Confidence: ⭐⭐⭐⭐⭐ (X.X/5.0 stars)
+#### 📚 Documentation Confidence: ⭐⭐⭐⭐🌟 (X.X/5.0 stars)
 **What**: Quality and completeness of code documentation
 **Why**: [Specific reasoning about docstrings, comments, and clarity]
 **Improvement**: [What's needed to reach 5 stars]
@@ -406,16 +490,44 @@ Before running the real application, **ALWAYS** provide a confidence analysis re
 ### 🎯 Overall Assessment:
 [Detailed explanation of overall confidence level and what would be needed to reach 5 stars across all axes]
 
+### ⭐ Overall Star Rating:
+[Overall star rating using the scoring guidelines above]
+
 ### ⚠️ Risk Assessment:
 [Identify potential risks, edge cases, or areas of concern]
 
 ### 🚀 Ready for Manual Testing:
 [Yes/No with brief justification]
-```
+
+### ⚠️ **CRITICAL: Confidence Analysis Accuracy**
+
+**NEVER overstate confidence without proper validation:**
+
+#### ❌ **What NOT to Do:**
+- **Claim "fully tested"** when only unit/integration tests exist
+- **Say "ready for manual testing"** without running the actual E2E scenario
+- **Rate confidence highly** based on component tests alone
+- **Make definitive statements** about functionality that hasn't been end-to-end validated
+
+#### ✅ **What TO Do Instead:**
+- **Be honest about testing scope** (unit vs integration vs E2E)
+- **Clearly distinguish** between component validation and full workflow validation
+- **Rate confidence appropriately** based on actual testing performed
+- **Acknowledge limitations** in testing coverage
+
+#### 🔍 **Confidence Validation Checklist:**
+- [ ] **Component tests pass** (unit/integration)
+- [ ] **Subprocess orchestration tested** (real processes)
+- [ ] **Network communication validated** (actual HTTP/WebSocket)
+- [ ] **Complete workflow tested** (full E2E scenario)
+- [ ] **Cross-platform validation** (Windows/macOS/Linux)
+- [ ] **Error scenarios tested** (failure modes, cleanup)
+
+**Rule: Confidence ratings must reflect the actual scope of testing performed, not just component validation.**
 
 ### Confidence Scoring Guidelines
 
-#### ⭐⭐⭐⭐⭐ (5.0 stars) - Excellent
+#### ⭐⭐⭐⭐🌟 (5.0 stars) - Excellent
 - Comprehensive test coverage including edge cases
 - High-quality implementation following all best practices
 - Complete feature implementation with proper error handling
@@ -423,7 +535,15 @@ Before running the real application, **ALWAYS** provide a confidence analysis re
 - Excellent documentation and code clarity
 - **Rarely achieved** - indicates exceptional work
 
-#### ⭐⭐⭐⭐ (4.0-4.5 stars) - Very Good
+#### ⭐⭐⭐⭐⯪ (4.5 stars) - Very Good+
+- Excellent test coverage with minor gaps
+- High-quality implementation with minimal improvements needed
+- Feature complete with excellent error handling
+- Very good integration with no side effects
+- Very good documentation with minor gaps
+- **Target level** for high-quality implementations
+
+#### ⭐⭐⭐⭐☆ (4.0 stars) - Very Good
 - Good test coverage with most edge cases covered
 - Well-implemented code with minor improvements possible
 - Feature mostly complete with good error handling
@@ -431,7 +551,15 @@ Before running the real application, **ALWAYS** provide a confidence analysis re
 - Good documentation with minor gaps
 - **Target level** for most implementations
 
-#### ⭐⭐⭐ (3.0-3.5 stars) - Good
+#### ⭐⭐⭐⯪☆ (3.5 stars) - Good+
+- Good test coverage with some gaps
+- Well-implemented code with room for improvement
+- Core feature working well with good error handling
+- Good integration with minor concerns
+- Good documentation with some gaps
+- **Above minimum acceptable level**
+
+#### ⭐⭐⭐☆☆ (3.0 stars) - Good
 - Adequate test coverage with some gaps
 - Functional implementation with room for improvement
 - Core feature working with basic error handling
@@ -439,7 +567,15 @@ Before running the real application, **ALWAYS** provide a confidence analysis re
 - Basic documentation present
 - **Minimum acceptable level**
 
-#### ⭐⭐ (2.0-2.5 stars) - Fair
+#### ⭐⭐⯪☆☆ (2.5 stars) - Fair+
+- Limited test coverage with significant gaps
+- Implementation works but has quality issues
+- Partial feature implementation with some functionality
+- Integration concerns with some side effects
+- Poor documentation with some content
+- **Requires improvement before proceeding**
+
+#### ⭐⭐☆☆☆ (2.0 stars) - Fair
 - Limited test coverage with significant gaps
 - Implementation works but has quality issues
 - Partial feature implementation
@@ -447,7 +583,15 @@ Before running the real application, **ALWAYS** provide a confidence analysis re
 - Poor or missing documentation
 - **Requires improvement before proceeding**
 
-#### ⭐ (1.0-1.5 stars) - Poor
+#### ⭐⯪☆☆☆ (1.5 stars) - Poor+
+- Minimal test coverage with some gaps
+- Implementation has significant issues but partially works
+- Feature incomplete with some functionality
+- Major integration problems with some working parts
+- Minimal documentation
+- **Should not proceed to manual testing**
+
+#### ⭐☆☆☆☆ (1.0 stars) - Poor
 - Minimal or no test coverage
 - Implementation has significant issues
 - Feature incomplete or broken
@@ -538,11 +682,13 @@ High risk of runtime errors and integration issues. Implementation needs signifi
 **Never use ad-hoc manual testing** when durable alternatives exist:
 
 #### ❌ **Avoid These Fragile Approaches:**
-- Manual `curl` commands in chat/terminal
-- Ad-hoc `Invoke-WebRequest` PowerShell commands
-- Manual Python scripts run once and forgotten
-- Browser-based manual testing without automation
-- One-off command-line testing
+- **Manual `curl` commands** in chat/terminal
+- **Ad-hoc `Invoke-WebRequest` PowerShell commands**
+- **Manual Python scripts** run once and forgotten (`python -c "..."`)
+- **One-off command-line testing** with temporary scripts
+- **Browser-based manual testing** without automation
+- **Interactive debugging sessions** that aren't captured in tests
+- **Ad-hoc subprocess testing** that isn't repeatable
 
 #### ✅ **Use These Durable Approaches:**
 - **pytest tests** for all functionality
@@ -570,6 +716,10 @@ High risk of runtime errors and integration issues. Implementation needs signifi
 - **Feature validation** (write proper tests)
 - **API endpoint testing** (use pytest + httpx)
 - **Performance validation** (use automated benchmarks)
+- **Subprocess testing** (use pytest with proper fixtures)
+- **Server startup testing** (use pytest with TestClient or httpx.ASGITransport)
+- **Cross-platform compatibility** (use pytest with platform-specific fixtures)
+- **Debugging production issues** (capture in reproducible tests)
 
 ### 💡 **Best Practices:**
 
@@ -600,6 +750,41 @@ async def test_server_startup():
         assert response.status_code == 200
 ```
 
+#### **For Subprocess Testing:**
+```python
+@pytest.mark.asyncio
+async def test_server_subprocess_startup():
+    """Test that server can start as subprocess and respond."""
+    import subprocess
+    import sys
+    import time
+    
+    cmd = [sys.executable, "-m", "motive_proxy.cli", "run", "--host", "localhost", "--port", "8000"]
+    
+    # Start server subprocess
+    process = subprocess.Popen(
+        cmd, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+    )
+    
+    try:
+        # Wait for server to start
+        await asyncio.sleep(2)
+        assert process.poll() is None, "Server should be running"
+        
+        # Test health endpoint
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get("http://localhost:8000/health")
+            assert response.status_code == 200
+            
+    finally:
+        # Clean up
+        process.terminate()
+        process.wait()
+```
+
 #### **For End-to-End Testing:**
 ```python
 def test_complete_workflow():
@@ -615,6 +800,88 @@ def test_complete_workflow():
 3. **🟢 Verify tests pass** with real server
 4. **🔄 Add edge case tests** for robustness
 5. **📊 Add performance tests** if needed
+
+### ⚠️ **CRITICAL: No Ad-Hoc Testing**
+
+**NEVER use these anti-patterns during development:**
+
+#### ❌ **What NOT to Do:**
+```bash
+# DON'T: Ad-hoc command testing
+python -c "import subprocess; ..."
+
+# DON'T: One-off manual testing
+curl http://localhost:8000/health
+
+# DON'T: Temporary debugging scripts
+python debug_server.py
+```
+
+#### ✅ **What TO Do Instead:**
+```python
+# DO: Write proper pytest tests
+@pytest.mark.asyncio
+async def test_server_health_endpoint():
+    """Test server health endpoint."""
+    # Proper test implementation
+    pass
+
+# DO: Use fixtures for reusable test components
+@pytest.fixture
+async def test_server():
+    """Fixture for test server."""
+    # Proper fixture implementation
+    pass
+```
+
+**Rule: If you find yourself typing `python -c "..."` or running manual commands, STOP and write a proper test instead.**
+
+### 🚨 **CRITICAL: E2E Testing Validation**
+
+**ALWAYS validate that E2E functionality actually works end-to-end:**
+
+#### ❌ **What NOT to Do:**
+- **Claim E2E is "tested"** when only unit/integration tests exist
+- **Use in-process tests** (`TestClient`, `httpx.ASGITransport`) and assume they validate subprocess functionality
+- **Skip actual subprocess testing** because "the components work in isolation"
+- **Make confident claims** about E2E functionality without running it
+
+#### ✅ **What TO Do Instead:**
+- **Test the actual E2E scenario** with real subprocesses and network communication
+- **Validate subprocess orchestration** works correctly
+- **Test network binding** and port accessibility
+- **Run the complete E2E workflow** before claiming it's ready
+
+#### 🔍 **E2E Testing Checklist:**
+- [ ] **In-process tests pass** (unit/integration validation)
+- [ ] **Subprocess tests pass** (real process orchestration)
+- [ ] **Network communication works** (actual HTTP/WebSocket)
+- [ ] **Complete workflow tested** (full E2E scenario)
+- [ ] **Cross-platform validation** (Windows/macOS/Linux)
+
+**Rule: E2E testing is not complete until the actual end-to-end scenario works with real subprocesses and network communication.**
+
+### 🔥 **Windows Firewall Considerations**
+
+**When running E2E tests on Windows, be aware of firewall interactions:**
+
+#### ⚠️ **What to Expect:**
+- **Windows Firewall Dialog**: May appear when server binds to network interface
+- **User Approval Required**: User must allow the connection for tests to proceed
+- **One-time Setup**: Usually only needed once per application
+
+#### ✅ **Best Practices:**
+- **Inform users** about potential firewall dialogs in documentation
+- **Provide clear instructions** for allowing connections
+- **Use consistent ports** to minimize firewall prompts
+- **Test firewall scenarios** in CI/CD environments
+
+#### 🔧 **Technical Solutions:**
+- **Use localhost/127.0.0.1** to minimize firewall interactions
+- **Configure firewall rules** programmatically for automated testing
+- **Handle connection errors** gracefully with appropriate user guidance
+
+**Rule: Always inform users about potential firewall interactions in E2E testing scenarios.**
 
 ### 📝 **Documentation Testing:**
 - **Always test examples** in documentation
@@ -745,8 +1012,112 @@ Fixes #123
 - Use **consistent emoji choices** for similar concepts
 - **Don't overdo it** - quality over quantity
 
+## 🌐 Cross-Platform Development Guidelines
+
+### Windows and macOS/Linux Compatibility
+
+**MotiveProxy MUST support both Windows and macOS/Linux platforms** with consistent behavior across all operating systems.
+
+#### 🔧 **Platform-Specific Considerations:**
+
+##### **Subprocess Handling**
+- **Windows**: Use `subprocess.CREATE_NEW_PROCESS_GROUP` for proper process management
+- **macOS/Linux**: Standard subprocess handling works correctly
+- **Process Termination**: Handle `terminate()` vs `kill()` behavior differences
+- **Path Handling**: Use `pathlib.Path` for cross-platform path operations
+
+```python
+import sys
+import subprocess
+from pathlib import Path
+
+# Cross-platform subprocess creation
+if sys.platform == "win32":
+    process = subprocess.Popen(
+        cmd, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+    )
+else:
+    process = subprocess.Popen(
+        cmd, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE
+    )
+
+# Cross-platform path handling
+config_path = Path("config") / "settings.yaml"  # Works on all platforms
+```
+
+##### **File System Operations**
+- **Use `pathlib.Path`** instead of `os.path` for all file operations
+- **Handle path separators** automatically with `Path` objects
+- **Test file permissions** on both platforms when relevant
+
+##### **Network and Port Handling**
+- **Use `localhost`** instead of `127.0.0.1` for consistency
+- **Handle port binding** differences between platforms
+- **Test network timeouts** on both platforms
+
+##### **Environment Variables**
+- **Use `os.environ`** for cross-platform environment variable access
+- **Handle case sensitivity** differences (Windows vs Unix)
+- **Provide platform-specific defaults** when needed
+
+#### 🧪 **Cross-Platform Testing Requirements:**
+
+##### **Test Coverage**
+- **Test on both platforms** when possible
+- **Use platform-specific test fixtures** when needed
+- **Mock platform-specific behavior** in unit tests
+- **Document platform differences** in test documentation
+
+##### **CI/CD Considerations**
+- **Run tests on multiple platforms** in CI/CD pipeline
+- **Use platform-specific build steps** when necessary
+- **Handle platform-specific dependencies** in requirements files
+
+#### 📋 **Cross-Platform Checklist:**
+
+For any new feature or bug fix, ensure:
+
+- [ ] **Subprocess operations** work on both Windows and macOS/Linux
+- [ ] **File paths** use `pathlib.Path` for cross-platform compatibility
+- [ ] **Network operations** use standard libraries that work on all platforms
+- [ ] **Environment variables** are accessed in a platform-agnostic way
+- [ ] **Process management** handles platform differences correctly
+- [ ] **Error handling** accounts for platform-specific error messages
+- [ ] **Documentation** mentions any platform-specific requirements or limitations
+
+#### ⚠️ **Common Cross-Platform Pitfalls:**
+
+##### **❌ Avoid These:**
+- Hardcoded path separators (`/` or `\`)
+- Platform-specific command execution
+- Windows-specific registry access
+- Unix-specific file permissions
+- Platform-specific environment variable names
+
+##### **✅ Use These Instead:**
+- `pathlib.Path` for all file operations
+- `subprocess` with proper platform handling
+- Cross-platform configuration files (YAML, JSON)
+- Standard library functions that work everywhere
+- Environment variable handling with fallbacks
+
+#### 🔄 **Cross-Platform Development Workflow:**
+
+1. **🔍 Design** with cross-platform compatibility in mind
+2. **🧪 Write tests** that work on both platforms
+3. **🛠️ Implement** using cross-platform libraries and patterns
+4. **✅ Test** on both Windows and macOS/Linux when possible
+5. **📚 Document** any platform-specific requirements or limitations
+
 ## Summary
 
 **Remember**: TDD is not just about writing tests - it's about **thinking through the problem first**, **designing the interface**, and **ensuring quality**. Every feature should start with a failing test that describes the expected behavior, then implementation that makes it pass.
 
-The goal is **reliable, maintainable code** that works correctly and continues to work as the project evolves.
+**Cross-platform compatibility** is essential for MotiveProxy's success. Always consider Windows and macOS/Linux compatibility when implementing features, and test on both platforms when possible.
+
+The goal is **reliable, maintainable code** that works correctly and continues to work as the project evolves across all supported platforms.

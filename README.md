@@ -15,7 +15,7 @@
 ✅ **Production Observability** - Structured logging, metrics, and correlation IDs  
 ✅ **Configuration Management** - Environment variables and CLI configuration  
 ✅ **Session Management** - Automatic cleanup, TTL, and admin endpoints  
-✅ **Comprehensive Testing** - 70+ tests with full coverage
+✅ **Comprehensive Testing** - 109 tests with full coverage (Unit + Integration + E2E)
 
 ## 🚀 Quick Start
 
@@ -233,6 +233,12 @@ inv test
 
 # Run tests with coverage
 inv test-cov
+
+# Run E2E tests (separate from main test suite)
+pytest -m e2e
+
+# Run E2E tool directly
+motive-proxy-e2e --scenario basic-handshake --turns 3
 
 # Format code
 inv format-code

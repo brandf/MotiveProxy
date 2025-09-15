@@ -138,3 +138,12 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# MotiveProxy Logs
+logs/
+*.log
+*_test_results/
+*_test_summary.json
+*_output/
+test_logs/
+e2e_output/

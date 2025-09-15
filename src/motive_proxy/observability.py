@@ -1,8 +1,10 @@
 """Observability utilities for logging and metrics."""
 
 import logging
+import os
 import time
 import uuid
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import structlog
@@ -11,6 +13,10 @@ from fastapi import Request
 
 def setup_logging() -> None:
     """Configure structured logging with JSON output."""
+    # Ensure logs directory exists
+    logs_dir = Path("logs/motive-proxy")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    
     # Configure structlog
     structlog.configure(
         processors=[
@@ -30,11 +36,15 @@ def setup_logging() -> None:
         cache_logger_on_first_use=True,
     )
     
-    # Configure standard library logging
+    # Configure standard library logging with file handler
+    log_file = logs_dir / "motive-proxy.log"
     logging.basicConfig(
         format="%(message)s",
-        stream=logging.StreamHandler(),
         level=logging.INFO,
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()  # Also log to console
+        ]
     )
 
 

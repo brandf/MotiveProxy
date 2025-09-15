@@ -1,0 +1,38 @@
+{
+  "timestamp": 1757864807.1830757,
+  "server_url": "http://localhost:8020",
+  "session_id": "test-session-diagnosis",
+  "api_key": "test-key",
+  "tests": {
+    "health_check": {
+      "success": true,
+      "status_code": 200,
+      "response": "{\"status\":\"healthy\"}",
+      "error": null
+    },
+    "completions_endpoint": {
+      "success": false,
+      "status_code": null,
+      "response": null,
+      "error": ""
+    },
+    "langchain_client": {
+      "success": false,
+      "response": null,
+      "error": "Request timed out."
+    },
+    "session_creation": {
+      "success": false,
+      "status_code": null,
+      "response": null,
+      "error": ""
+    }
+  },
+  "server_logs": {
+    "stdout": "",
+    "stderr": "",
+    "returncode": null,
+    "error": "Command '['C:\\\\Users\\\\brand\\\\Documents\\\\GitHub\\\\MotiveProxy\\\\venv\\\\Scripts\\\\python.exe', '-m', 'motive_proxy.cli', 'run', '--host', 'localhost', '--port', '8020', '--log-level', 'debug']' timed out after 1 seconds"
+  },
+  "server_pid": 24108
+}

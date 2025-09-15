@@ -32,7 +32,6 @@ async def lifespan(app: FastAPI):
     app.state.session_manager = SessionManager(
         handshake_timeout_seconds=settings.handshake_timeout_seconds,
         turn_timeout_seconds=settings.turn_timeout_seconds,
-        session_ttl_seconds=settings.session_ttl_seconds,
         max_sessions=settings.max_sessions,
     )
     

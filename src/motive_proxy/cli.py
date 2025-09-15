@@ -5,13 +5,19 @@ import uvicorn
 from motive_proxy.settings import get_settings
 
 
-@click.command()
+@click.group()
+def cli():
+    """MotiveProxy - A bidirectional proxy for OpenAI-compatible clients."""
+    pass
+
+
+@cli.command()
 @click.option("--host", default=None, help="Host to bind to")
 @click.option("--port", default=None, type=int, help="Port to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
 @click.option("--log-level", default=None, help="Logging level (debug, info, warning, error)")
 @click.option("--debug", is_flag=True, help="Enable debug mode")
-def main(host: str, port: int, reload: bool, log_level: str, debug: bool):
+def run(host: str, port: int, reload: bool, log_level: str, debug: bool):
     """MotiveProxy - A bidirectional proxy for OpenAI-compatible clients."""
     settings = get_settings()
     
@@ -27,7 +33,7 @@ def main(host: str, port: int, reload: bool, log_level: str, debug: bool):
         settings.log_level = "DEBUG"
     
     # Display effective configuration
-    click.echo("🚀 Starting MotiveProxy with configuration:")
+    click.echo("Starting MotiveProxy with configuration:")
     click.echo(f"   Host: {settings.host}")
     click.echo(f"   Port: {settings.port}")
     click.echo(f"   Debug: {settings.debug}")
@@ -48,6 +54,14 @@ def main(host: str, port: int, reload: bool, log_level: str, debug: bool):
         reload=reload,
         log_level=settings.log_level.lower(),
     )
+
+
+# E2E testing is handled by a separate tool, not part of MotiveProxy core
+
+
+def main():
+    """Main CLI entry point."""
+    cli()
 
 
 if __name__ == "__main__":

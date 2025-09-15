@@ -13,7 +13,7 @@
 - ✅ **M5**: Protocol extensions (OpenAI + Anthropic)
 - ✅ **M6**: Security hardening & operational features
 
-**Test Coverage**: 103 comprehensive tests (100% pass rate)
+**Test Coverage**: 109 comprehensive tests (100% pass rate) - Unit (44) + Integration (59) + E2E (6)
 **Security**: Rate limiting, payload protection, CORS, optional authentication
 **Operations**: Detailed health checks, metrics, admin endpoints
 **Documentation**: Complete with security configuration guide
@@ -159,11 +159,22 @@ Errors
 
 ## 🧪 Testing Strategy (TDD)
 
-- Unit: SessionManager lifecycle, Session state machine, MessageRouter routing, validation/converters.
-- Integration: API endpoints for handshake, normal turns, timeouts, concurrent sessions, invalid payloads.
-- Concurrency: Many sessions in parallel; race conditions (simultaneous connect); backpressure.
-- E2E: Example clients (httpx) simulating both sides; durable tests over ad-hoc shell.
-- Regression: Add tests for every bug found.
+### Testing Pyramid Implementation ✅
+- **Unit Tests (44 tests)**: SessionManager lifecycle, Session state machine, MessageRouter routing, validation/converters
+- **Integration Tests (59 tests)**: API endpoints for handshake, normal turns, timeouts, concurrent sessions, invalid payloads
+- **E2E Tests (6 tests)**: Real subprocess testing with `motive-proxy-e2e` tool, separate from main pytest suite
+
+### Performance Standards ✅
+- **Main pytest suite**: < 15 seconds for 105 tests (excludes E2E)
+- **E2E tests**: 30-90 seconds per test, run separately
+- **Zero flaky tests**: All tests pass consistently in CI/CD
+- **Proper separation**: E2E tests use external `motive-proxy-e2e` tool
+
+### Test Categories ✅
+- **Unit**: Individual components in isolation (< 10ms per test)
+- **Integration**: Component interactions with sandboxed ASGI clients (< 100ms per test)
+- **E2E**: Full system with real subprocesses and network connections (30-90s per test)
+- **Regression**: Add tests for every bug found
 
 ## 🔐 Security & Limits
 
@@ -485,12 +496,128 @@ motive-proxy test-e2e --scenario=streaming-test --protocol=openai --validate-res
 - **Protocol Validation**: Test both OpenAI and Anthropic protocols
 - **Report Generation**: HTML/JSON test reports with visualizations
 
+**Architecture**: 
+- **MotiveProxy Server** → Independent subprocess (real server)
+- **TestClient A** → Independent subprocess (real LangChain client)
+- **TestClient B** → Independent subprocess (real LangChain client)  
+- **E2E CLI** → Orchestrates all processes, monitors stdout/stderr
+- **Communication** → Normal HTTP/WebSocket between clients and server (no IPC)
+
 **Technical Components**:
-- `src/motive_proxy/testing/e2e_cli.py` - CLI interface
-- `src/motive_proxy/testing/client_simulator.py` - Simulated clients
+- `src/motive_proxy/testing/e2e_cli.py` - CLI orchestration
+- `src/motive_proxy/testing/test_client_runner.py` - Standalone test client script
 - `src/motive_proxy/testing/scenarios.py` - Test scenarios
 - `src/motive_proxy/testing/log_collector.py` - Log gathering and analysis
 - `tests/e2e/` - E2E test suite
+
+**Implementation Checklist**:
+- ✅ Create `src/motive_proxy/testing/` directory structure
+- ✅ Implement `e2e_cli.py` with click commands and argument parsing
+- ✅ Create `test_client_runner.py` as standalone subprocess script
+- ✅ Implement `scenarios.py` with predefined test scenarios
+- ✅ Build `log_collector.py` for comprehensive log gathering
+- ✅ Add CLI command to main `cli.py` entrypoint
+- ✅ Create basic E2E test scenarios (handshake, timeout, streaming)
+- ✅ Implement subprocess orchestration (server + 2 clients)
+- ✅ Implement report generation (JSON/HTML)
+- ✅ Add configuration options for test server settings
+- ✅ Test the E2E CLI with real MotiveProxy instance
+- ✅ Document CLI usage and examples
+- ✅ Create separate E2E test suite in `tests/e2e/`
+- ✅ Add proper test categorization and markers
+
+### 2. Web Dashboard
+
+**Goal**: Provide a web-based management interface for monitoring sessions, viewing metrics, and configuring MotiveProxy.
+
+**Implementation Checklist**:
+- ☐ Create `src/motive_proxy/web/` directory structure
+- ☐ Implement `dashboard.py` with FastAPI routes for web interface
+- ☐ Create HTML templates for dashboard pages (sessions, metrics, config)
+- ☐ Add CSS/JavaScript for interactive dashboard components
+- ☐ Implement session monitoring page with real-time updates
+- ☐ Create metrics visualization (charts, graphs)
+- ☐ Add configuration management interface
+- ☐ Implement authentication for dashboard access
+- ☐ Add responsive design for mobile/tablet support
+- ☐ Create dashboard navigation and layout
+- ☐ Add export functionality for session data
+- ☐ Test dashboard with real MotiveProxy instance
+- ☐ Document dashboard features and usage
+
+### 3. Enhanced Rate Limiting
+
+**Goal**: Extend current rate limiting with per-user limits, sliding windows, and more granular controls.
+
+**Implementation Checklist**:
+- ☐ Extend `RateLimiter` class with per-user rate limiting
+- ☐ Implement sliding window rate limiting algorithm
+- ☐ Add user identification from JWT tokens or API keys
+- ☐ Create rate limit configuration per user/organization
+- ☐ Implement distributed rate limiting (Redis-based)
+- ☐ Add rate limit headers to responses
+- ☐ Create rate limit management API endpoints
+- ☐ Add rate limit metrics and monitoring
+- ☐ Implement rate limit bypass for admin users
+- ☐ Add rate limit testing and validation
+- ☐ Update middleware to use enhanced rate limiting
+- ☐ Document rate limiting configuration options
+
+### 4. JWT Authentication
+
+**Goal**: Implement token-based authentication with refresh tokens for secure API access.
+
+**Implementation Checklist**:
+- ☐ Add JWT dependencies (`python-jose`, `passlib`)
+- ☐ Create `src/motive_proxy/auth/jwt_handler.py` for token management
+- ☐ Implement user authentication and token generation
+- ☐ Create refresh token mechanism
+- ☐ Add JWT middleware for request authentication
+- ☐ Implement user management (create, update, delete users)
+- ☐ Add password hashing and validation
+- ☐ Create authentication API endpoints (`/auth/login`, `/auth/refresh`)
+- ☐ Add JWT configuration to settings
+- ☐ Implement token blacklisting for logout
+- ☐ Add JWT testing and validation
+- ☐ Update existing endpoints to use JWT authentication
+- ☐ Document JWT authentication setup and usage
+
+### 5. Custom Metrics & Alerting
+
+**Goal**: Allow users to define custom metrics and set up alerting based on those metrics.
+
+**Implementation Checklist**:
+- ☐ Extend `MetricsCollector` with custom metric support
+- ☐ Create metric definition API endpoints
+- ☐ Implement alerting engine with configurable thresholds
+- ☐ Add notification channels (email, Slack, webhook)
+- ☐ Create alert management interface
+- ☐ Implement metric aggregation and rollup
+- ☐ Add custom metric visualization in dashboard
+- ☐ Create alert history and status tracking
+- ☐ Implement alert suppression and escalation
+- ☐ Add metric testing and validation
+- ☐ Create alerting configuration management
+- ☐ Document custom metrics and alerting setup
+
+### 6. Webhook Support
+
+**Goal**: Enable event-driven notifications for session events and system changes.
+
+**Implementation Checklist**:
+- ☐ Create `src/motive_proxy/webhooks/` directory structure
+- ☐ Implement `webhook_manager.py` for webhook orchestration
+- ☐ Create webhook event definitions and payloads
+- ☐ Add webhook configuration management
+- ☐ Implement webhook delivery with retry logic
+- ☐ Create webhook testing and validation endpoints
+- ☐ Add webhook security (signatures, authentication)
+- ☐ Implement webhook event filtering and routing
+- ☐ Add webhook delivery status tracking
+- ☐ Create webhook management API endpoints
+- ☐ Add webhook testing and validation
+- ☐ Document webhook configuration and usage
+- ☐ Create webhook examples and templates
 
 ### 2. Communication Bridge Protocols
 
@@ -565,14 +692,14 @@ SMS_PHONE_NUMBER=+1234567890
 
 ### High Impact, Low Effort (Quick Wins)
 - **E2E Testing Automation CLI** - Automated end-to-end testing with real client simulation
-- **Communication Bridge Protocols** - Email, Discord, SMS integration for async games
-- Web dashboard for session management
-- Enhanced rate limiting with per-user limits
-- JWT authentication
-- Custom metrics and alerting
-- Webhook support for events
+- **Web Dashboard** - Management interface for sessions and configuration
+- **Enhanced Rate Limiting** - Per-user limits and sliding windows
+- **JWT Authentication** - Token-based authentication with refresh tokens
+- **Custom Metrics & Alerting** - User-defined metrics and alerting system
+- **Webhook Support** - Event-driven notifications for session events
 
 ### High Impact, High Effort (Strategic Initiatives)
+- **Communication Bridge Protocols** - Email, Discord, SMS integration for async games
 - Multi-tenancy and organization management
 - Distributed session management
 - Advanced security features
