@@ -281,6 +281,8 @@ async def _run_llm_conversation(
         safe_print(f"{name}: Handshake completed. Received first message from B: {response[:100]}...")
         
         # Continue conversation for specified turns
+        # Note: A has already completed handshake above.
+        # For T turns, A should perform exactly `turns` additional sends to match B's (turns-1) sends after B0.
         for turn in range(turns):
             # Generate LLM response to the last message received from B
             llm_response = await llm_client.process_message(response)

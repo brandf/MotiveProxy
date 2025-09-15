@@ -55,6 +55,31 @@ chmod +x examples/curl_examples.sh
 ./examples/curl_examples.sh
 ```
 
+### 4. E2E Testing with Real LLMs
+Advanced testing examples using real AI models to validate MotiveProxy functionality.
+
+**What it shows:**
+- Real AI-to-AI conversations through MotiveProxy
+- Context window management
+- Multi-turn conversation validation
+- Performance and reliability testing
+
+**Run it:**
+```bash
+# Set up API keys first
+python setup_env.py
+
+# Basic LLM-to-LLM test
+motive-proxy-e2e --use-llms --turns 5
+
+# Advanced configuration
+motive-proxy-e2e --use-llms \
+  --llm-provider-a google --llm-model-a gemini-2.5-flash \
+  --llm-provider-b anthropic --llm-model-b claude-3-sonnet \
+  --conversation-prompt "Discuss the future of AI" \
+  --turns 10 --max-context-messages 12
+```
+
 ## Common Patterns
 
 ### Session Management

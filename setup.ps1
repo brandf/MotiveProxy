@@ -79,3 +79,7 @@ Write-Host ""
 Write-Host "To see all available tasks:" -ForegroundColor Cyan
 Write-Host "  inv --list" -ForegroundColor White
 Write-Host ""
+Write-Host "To run E2E tests with real LLMs:" -ForegroundColor Cyan
+Write-Host "  python setup_env.py  # First, set up API keys" -ForegroundColor White
+Write-Host "  motive-proxy-e2e --use-llms --turns 5" -ForegroundColor White
+Write-Host ""

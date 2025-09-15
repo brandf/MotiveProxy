@@ -64,6 +64,9 @@ inv clean
 
 # Set up pre-commit hooks
 inv pre-commit-install
+
+# Run E2E tests with real LLMs
+motive-proxy-e2e --use-llms --turns 5
 ```
 
 ## Project Structure
@@ -75,7 +78,11 @@ MotiveProxy/
 │   ├── app.py                 # FastAPI application
 │   ├── cli.py                 # Command-line interface
 │   ├── session_manager.py     # Session management
-│   └── routes/                # API routes
+│   ├── routes/                # API routes
+│   └── testing/               # E2E testing tools
+│       ├── e2e_cli.py         # E2E test runner
+│       ├── test_client_runner.py # LLM test client
+│       └── llm_client.py      # LLM integration
 ├── tests/                     # Test code
 ├── pyproject.toml             # Project configuration
 ├── requirements.txt           # Core dependencies
@@ -155,6 +162,37 @@ Automatically runs quality checks before commits:
 inv pre-commit-install  # One-time setup
 # Now all commits automatically run checks
 ```
+
+## E2E Testing with Real LLMs
+
+MotiveProxy includes advanced E2E testing capabilities that validate real AI-to-AI conversations:
+
+### Setup
+1. **Configure API keys:**
+   ```bash
+   python setup_env.py  # Creates .env template
+   # Edit .env with your API keys
+   ```
+
+2. **Run LLM-to-LLM tests:**
+   ```bash
+   # Basic 5-turn conversation
+   motive-proxy-e2e --use-llms --turns 5
+   
+   # Advanced configuration
+   motive-proxy-e2e --use-llms \
+     --llm-provider-a google --llm-model-a gemini-2.5-flash \
+     --llm-provider-b anthropic --llm-model-b claude-3-sonnet \
+     --conversation-prompt "Discuss AI safety" \
+     --turns 10 --max-context-messages 12
+   ```
+
+### Features
+- **Real AI Models**: Uses actual LLM APIs (Google Gemini, OpenAI, Anthropic, Cohere)
+- **Context Management**: Smart conversation history truncation
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Comprehensive Logging**: Detailed conversation analysis
+- **Performance Metrics**: Response times and throughput tracking
 
 ## Why This Approach?
 

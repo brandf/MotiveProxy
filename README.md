@@ -15,7 +15,8 @@
 ✅ **Production Observability** - Structured logging, metrics, and correlation IDs  
 ✅ **Configuration Management** - Environment variables and CLI configuration  
 ✅ **Session Management** - Automatic cleanup, TTL, and admin endpoints  
-✅ **Comprehensive Testing** - 109 tests with full coverage (Unit + Integration + E2E)
+✅ **Comprehensive Testing** - 109 tests with full coverage (Unit + Integration + E2E)  
+✅ **LLM-to-LLM E2E Testing** - Real AI conversations through MotiveProxy for validation
 
 ## 🚀 Quick Start
 
@@ -668,9 +669,23 @@ MotiveProxy includes powerful E2E testing capabilities that allow you to test re
 ```bash
 # Gemini vs Claude conversation
 motive-proxy-e2e --use-llms \
-  --llm-provider-a google --llm-model-a gemini-2.0-flash-exp \
+  --llm-provider-a google --llm-model-a gemini-2.5-flash \
   --llm-provider-b anthropic --llm-model-b claude-3-sonnet \
-  --conversation-prompt "Let's debate the future of AI safety"
+  --conversation-prompt "Let's debate the future of AI safety" \
+  --turns 5
+```
+
+### 🎯 Example: Multi-Turn Conversation
+
+```bash
+# 5-turn conversation with context management
+motive-proxy-e2e --use-llms \
+  --llm-provider-a google --llm-model-a gemini-2.5-flash \
+  --llm-provider-b google --llm-model-b gemini-2.5-flash \
+  --conversation-prompt "Let's discuss AI safety" \
+  --turns 5 \
+  --max-context-messages 8 \
+  --system-prompt "Be concise and thoughtful"
 ```
 
 ### 📊 Test Results
