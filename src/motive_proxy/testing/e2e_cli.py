@@ -34,6 +34,7 @@ from .log_collector import LogCollector
 @click.option('--llm-model-b', default='gemini-2.5-flash', help='LLM model for Client B')
 @click.option('--conversation-prompt', default='Hello! Let\'s have a conversation about artificial intelligence.', help='Initial conversation prompt')
 @click.option('--max-context-messages', default=10, help='Maximum context messages to keep for LLM')
+@click.option('--max-response-length', default=2000, help='Maximum response length for LLM (characters)')
 @click.option('--system-prompt', help='System prompt for LLM conversation context')
 def e2e_test_command(
     scenario: str,
@@ -53,6 +54,7 @@ def e2e_test_command(
     llm_model_b: str,
     conversation_prompt: str,
     max_context_messages: int,
+    max_response_length: int,
     system_prompt: Optional[str]
 ):
     """E2E testing automation for MotiveProxy.
@@ -162,8 +164,8 @@ async def _run_e2e_test(
         
         # For LLM runs, ensure clients have long HTTP timeouts too
         client_timeout = timeout
-        if use_llms and (client_timeout is None or client_timeout < 240):
-            client_timeout = 240.0
+        if use_llms and (client_timeout is None or client_timeout < 300):
+            client_timeout = 300.0
 
         for i in range(concurrent):
             session_id = f"test-session-{i}"
@@ -225,8 +227,8 @@ async def _start_server(host: str, port: int, use_llms: bool = False) -> subproc
     # For LLM tests, use longer timeouts to accommodate LLM response times
     if use_llms:
         cmd.extend([
-            "--handshake-timeout-seconds", "120",
-            "--turn-timeout-seconds", "240"
+            "--handshake-timeout-seconds", "180",
+            "--turn-timeout-seconds", "300"
         ])
     
     print(f"Starting server: {' '.join(cmd)}")
@@ -310,8 +312,8 @@ async def _run_session_with_subprocesses(
                 f"--llm-model={llm_model_a}",
                 f"--conversation-prompt={conversation_prompt}",
                 f"--turns={turns}",
-                f"--max-context-messages={max_context_messages}",
-                f"--timeout={client_timeout}"
+                        f"--max-context-messages={max_context_messages}",
+                        f"--timeout={client_timeout}"
             ])
             if system_prompt:
                 client_a_cmd.append(f"--system-prompt={system_prompt}")
@@ -359,8 +361,8 @@ async def _run_session_with_subprocesses(
                 f"--llm-model={llm_model_b}",
                 f"--conversation-prompt={conversation_prompt}",
                 f"--turns={turns}",
-                f"--max-context-messages={max_context_messages}",
-                f"--timeout={client_timeout}"
+                        f"--max-context-messages={max_context_messages}",
+                        f"--timeout={client_timeout}"
             ])
             if system_prompt:
                 client_b_cmd.append(f"--system-prompt={system_prompt}")

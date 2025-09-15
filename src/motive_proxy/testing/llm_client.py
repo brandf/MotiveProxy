@@ -29,16 +29,18 @@ except ImportError:
 class LLMTestClient:
     """LLM-enhanced test client for E2E testing with context window management."""
     
-    def __init__(self, llm: BaseChatModel, max_context_messages: int = 10):
+    def __init__(self, llm: BaseChatModel, max_context_messages: int = 10, max_response_length: int = 2000):
         """Initialize LLM test client.
         
         Args:
             llm: LangChain chat model instance
             max_context_messages: Maximum number of messages to keep in context
+            max_response_length: Maximum length for LLM responses (characters)
         """
         self.llm = llm
         self.conversation_history = []
         self.max_context_messages = max_context_messages
+        self.max_response_length = max_response_length
         self.system_prompt = None
     
     def set_system_prompt(self, prompt: str):
@@ -79,19 +81,39 @@ class LLMTestClient:
         Returns:
             LLM response message
         """
+        import time
+        
         # Add human message to conversation history
         self.conversation_history.append(HumanMessage(content=message))
         
         # Get optimized context for LLM
         context = self._get_context_for_llm()
         
+        # Track response time
+        start_time = time.time()
+        print(f"🤖 LLM processing... (context: {len(context)} messages)")
+        
         # Get LLM response
         response = await self.llm.ainvoke(context)
+        
+        # Calculate and log response time
+        response_time = time.time() - start_time
+        print(f"⚡ LLM response time: {response_time:.2f}s")
+        
+        # Warn if response is slow
+        if response_time > 20:
+            print(f"⚠️  Slow response detected: {response_time:.2f}s")
+        
+        # Truncate response if too long
+        response_content = response.content
+        if len(response_content) > self.max_response_length:
+            response_content = response_content[:self.max_response_length] + "..."
+            print(f"⚠️  Response truncated to {self.max_response_length} characters")
         
         # Add AI response to conversation history
         self.conversation_history.append(response)
         
-        return response.content
+        return response_content
     
     def get_conversation_history(self) -> list:
         """Get the full conversation history.

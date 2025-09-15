@@ -16,6 +16,7 @@ from typing import Optional, Dict, Any
 import click
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
+from motive_proxy.session import Side
 
 from .llm_client import LLMTestClient, create_llm_client
 
@@ -65,6 +66,7 @@ except ImportError:
 @click.option('--conversation-prompt', default='Hello! How are you?', help='Initial conversation prompt')
 @click.option('--turns', default=5, help='Number of conversation turns for LLM mode')
 @click.option('--max-context-messages', default=10, help='Maximum context messages to keep for LLM')
+@click.option('--max-response-length', default=2000, help='Maximum response length for LLM (characters)')
 @click.option('--system-prompt', help='System prompt for LLM conversation context')
 def main(
     name: str,
@@ -83,6 +85,7 @@ def main(
     conversation_prompt: str,
     turns: int,
     max_context_messages: int,
+    max_response_length: int,
     system_prompt: Optional[str]
 ):
     """Run a test client as an independent subprocess."""
@@ -135,7 +138,7 @@ def main(
                     model=llm_model,
                     api_key=llm_api_key
                 )
-                llm_client = LLMTestClient(llm_model_instance, max_context_messages=max_context_messages)
+                llm_client = LLMTestClient(llm_model_instance, max_context_messages=max_context_messages, max_response_length=max_response_length)
                 
                 # Set system prompt if provided
                 if system_prompt:
@@ -413,22 +416,54 @@ async def _run_scenario_steps(
     return results
 
 
-async def _send_message(client: ChatOpenAI, message: str, streaming: bool) -> str:
-    """Send a message using the LangChain client."""
-    try:
-        if streaming:
-            # Collect streaming response
-            response_parts = []
-            async for chunk in client.astream([HumanMessage(content=message)]):
-                if hasattr(chunk, 'content') and chunk.content:
-                    response_parts.append(chunk.content)
-            return ''.join(response_parts)
-        else:
-            # Regular response
-            response = await client.ainvoke([HumanMessage(content=message)])
-            return response.content if hasattr(response, 'content') else str(response)
-    except Exception as e:
-        return f"ERROR: {str(e)}"
+async def _send_message(client: ChatOpenAI, message: str, streaming: bool, sender_side: Optional[Side] = None, max_retries: int = 3) -> str:
+    """Send a message using the LangChain client with retry logic."""
+    import asyncio
+    
+    for attempt in range(max_retries + 1):
+        try:
+            # Construct messages for LangChain
+            messages_to_send = [HumanMessage(content=message)]
+            
+            # Add sender_side to the model name for MotiveProxy to interpret
+            # LangChain's ChatOpenAI client uses the 'model' parameter to pass session_id
+            # We'll append the sender_side to it for MotiveProxy's internal routing
+            original_model = client.model_name
+            if sender_side:
+                client.model_name = f"{original_model}|{sender_side.value}"
+            
+            if streaming:
+                # Collect streaming response
+                response_parts = []
+                async for chunk in client.astream(messages_to_send):
+                    if hasattr(chunk, 'content') and chunk.content:
+                        response_parts.append(chunk.content)
+                response_content = ''.join(response_parts)
+            else:
+                # Regular response
+                response = await client.ainvoke(messages_to_send)
+                response_content = response.content if hasattr(response, 'content') else str(response)
+            
+            # Revert model name
+            if sender_side:
+                client.model_name = original_model
+                
+            return response_content
+            
+        except Exception as e:
+            error_msg = str(e)
+            
+            # Check if it's a timeout error and we have retries left
+            if "timeout" in error_msg.lower() and attempt < max_retries:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                print(f"⚠️  Timeout on attempt {attempt + 1}, retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+            else:
+                # Revert model name on final failure
+                if sender_side:
+                    client.model_name = original_model
+                return f"ERROR: {error_msg}"
 
 
 def _load_scenario_steps(scenario: str, role: str) -> list:
