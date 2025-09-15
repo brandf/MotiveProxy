@@ -27,7 +27,7 @@ except ImportError:
 
 
 class LLMTestClient:
-    """LLM-enhanced test client for E2E testing with context window management."""
+    """LLM-enhanced test client for E2E testing with smart context management optimized for Gemini."""
     
     def __init__(self, llm: BaseChatModel, max_context_messages: int = 10, max_response_length: int = 2000):
         """Initialize LLM test client.
@@ -42,6 +42,12 @@ class LLMTestClient:
         self.max_context_messages = max_context_messages
         self.max_response_length = max_response_length
         self.system_prompt = None
+        
+        # Smart context management
+        self.conversation_summary = ""
+        self.recent_messages = []
+        self.response_cache = {}
+        self.summary_threshold = 8  # When to create summary
     
     def set_system_prompt(self, prompt: str):
         """Set a system prompt for the conversation.
@@ -51,29 +57,76 @@ class LLMTestClient:
         """
         self.system_prompt = prompt
     
-    def _get_context_for_llm(self) -> List:
-        """Get context for LLM with smart truncation.
+    def _build_smart_context(self, message: str) -> List:
+        """Build optimized context for Gemini with smart truncation.
         
-        Returns:
-            List of messages optimized for context window
-        """
-        if len(self.conversation_history) <= self.max_context_messages:
-            # If we're under the limit, return everything
-            context = self.conversation_history.copy()
-        else:
-            # Smart truncation: keep system prompt + recent messages
-            recent_messages = self.conversation_history[-self.max_context_messages:]
+        Args:
+            message: New message to add
             
-            # If we have a system prompt, prepend it
-            if self.system_prompt:
-                context = [SystemMessage(content=self.system_prompt)] + recent_messages
-            else:
-                context = recent_messages
+        Returns:
+            List of messages optimized for Gemini's context window
+        """
+        context = []
+        
+        # Always include system prompt if available
+        if self.system_prompt:
+            context.append(SystemMessage(content=self.system_prompt))
+        
+        # Add conversation summary if we have old history
+        if self.conversation_summary:
+            context.append(HumanMessage(content=f"[Previous context: {self.conversation_summary}]"))
+        
+        # Add recent messages (last 3-4 for optimal performance)
+        context.extend(self.recent_messages[-4:])
+        
+        # Add new message
+        context.append(HumanMessage(content=message))
         
         return context
     
+    def _update_context(self, message: str, response: str):
+        """Update conversation context efficiently.
+        
+        Args:
+            message: User message
+            response: LLM response
+        """
+        # Add to recent messages
+        self.recent_messages.append(HumanMessage(content=message))
+        self.recent_messages.append(AIMessage(content=response))
+        
+        # Add to full history for logging
+        self.conversation_history.append(HumanMessage(content=message))
+        self.conversation_history.append(AIMessage(content=response))
+        
+        # Create summary when we have too many recent messages
+        if len(self.recent_messages) > self.summary_threshold:
+            self._create_conversation_summary()
+    
+    def _create_conversation_summary(self):
+        """Create a summary of older conversation history."""
+        if len(self.recent_messages) <= 2:
+            return
+        
+        # Keep only the last 2 messages in recent_messages
+        # and summarize the rest
+        old_messages = self.recent_messages[:-2]
+        
+        # Simple summarization (could be enhanced with LLM summarization)
+        if len(old_messages) > 0:
+            summary_parts = []
+            for i, msg in enumerate(old_messages[::2]):  # Every other message (user messages)
+                if hasattr(msg, 'content') and len(msg.content) > 50:
+                    summary_parts.append(f"Turn {i+1}: {msg.content[:100]}...")
+            
+            if summary_parts:
+                self.conversation_summary = " | ".join(summary_parts)
+        
+        # Keep only last 2 messages
+        self.recent_messages = self.recent_messages[-2:]
+    
     async def process_message(self, message: str) -> str:
-        """Process an incoming message and return LLM response.
+        """Process an incoming message and return LLM response with smart context.
         
         Args:
             message: Incoming message from MotiveProxy
@@ -83,15 +136,18 @@ class LLMTestClient:
         """
         import time
         
-        # Add human message to conversation history
-        self.conversation_history.append(HumanMessage(content=message))
+        # Check cache first (simple hash-based caching)
+        cache_key = hash(message + str(self.recent_messages[-2:]) if len(self.recent_messages) >= 2 else message)
+        if cache_key in self.response_cache:
+            print(f"🚀 Cache hit! Using cached response")
+            return self.response_cache[cache_key]
         
-        # Get optimized context for LLM
-        context = self._get_context_for_llm()
+        # Build optimized context
+        context = self._build_smart_context(message)
         
         # Track response time
         start_time = time.time()
-        print(f"🤖 LLM processing... (context: {len(context)} messages)")
+        print(f"🤖 LLM processing... (context: {len(context)} messages, summary: {'yes' if self.conversation_summary else 'no'})")
         
         # Get LLM response
         response = await self.llm.ainvoke(context)
@@ -110,8 +166,11 @@ class LLMTestClient:
             response_content = response_content[:self.max_response_length] + "..."
             print(f"⚠️  Response truncated to {self.max_response_length} characters")
         
-        # Add AI response to conversation history
-        self.conversation_history.append(response)
+        # Update context efficiently
+        self._update_context(message, response_content)
+        
+        # Cache response
+        self.response_cache[cache_key] = response_content
         
         return response_content
     
@@ -130,19 +189,25 @@ class LLMTestClient:
             Dictionary with context statistics
         """
         total_messages = len(self.conversation_history)
-        context_messages = len(self._get_context_for_llm())
+        context_messages = len(self._build_smart_context(""))
         
         return {
             'total_messages': total_messages,
             'context_messages': context_messages,
             'max_context_messages': self.max_context_messages,
             'context_usage_percent': (context_messages / self.max_context_messages) * 100 if self.max_context_messages > 0 else 0,
-            'has_system_prompt': self.system_prompt is not None
+            'has_system_prompt': self.system_prompt is not None,
+            'has_conversation_summary': bool(self.conversation_summary),
+            'recent_messages_count': len(self.recent_messages),
+            'cache_size': len(self.response_cache)
         }
     
     def clear_history(self):
         """Clear conversation history."""
         self.conversation_history.clear()
+        self.recent_messages.clear()
+        self.conversation_summary = ""
+        self.response_cache.clear()
         self.system_prompt = None
 
 

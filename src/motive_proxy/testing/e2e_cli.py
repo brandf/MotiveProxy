@@ -33,8 +33,8 @@ from .log_collector import LogCollector
 @click.option('--llm-provider-b', default='google', type=click.Choice(['openai', 'anthropic', 'google', 'cohere']), help='LLM provider for Client B')
 @click.option('--llm-model-b', default='gemini-2.5-flash', help='LLM model for Client B')
 @click.option('--conversation-prompt', default='Hello! Let\'s have a conversation about artificial intelligence.', help='Initial conversation prompt')
-@click.option('--max-context-messages', default=10, help='Maximum context messages to keep for LLM')
-@click.option('--max-response-length', default=2000, help='Maximum response length for LLM (characters)')
+@click.option('--max-context-messages', default=6, help='Maximum context messages to keep for LLM (optimized for Gemini)')
+@click.option('--max-response-length', default=1000, help='Maximum response length for LLM (characters, optimized for speed)')
 @click.option('--system-prompt', help='System prompt for LLM conversation context')
 def e2e_test_command(
     scenario: str,
