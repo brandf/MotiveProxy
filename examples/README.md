@@ -60,9 +60,10 @@ Advanced testing examples using real AI models to validate MotiveProxy functiona
 
 **What it shows:**
 - Real AI-to-AI conversations through MotiveProxy
-- Context window management
-- Multi-turn conversation validation
-- Performance and reliability testing
+- Smart context window management and optimization
+- Multi-turn conversation validation (5-20 turns)
+- Performance optimization and reliability testing
+- Cross-platform compatibility validation
 
 **Run it:**
 ```bash
@@ -72,12 +73,22 @@ python setup_env.py
 # Basic LLM-to-LLM test
 motive-proxy-e2e --use-llms --turns 5
 
-# Advanced configuration
+# Advanced configuration with performance optimization
 motive-proxy-e2e --use-llms \
   --llm-provider-a google --llm-model-a gemini-2.5-flash \
   --llm-provider-b anthropic --llm-model-b claude-3-sonnet \
   --conversation-prompt "Discuss the future of AI" \
-  --turns 10 --max-context-messages 12
+  --turns 20 --max-context-messages 6 --max-response-length 1000
+
+# Test with different model combinations
+motive-proxy-e2e --use-llms \
+  --llm-provider-a google --llm-model-a gemini-2.5-flash \
+  --llm-provider-b google --llm-model-b gemini-2.5-flash \
+  --conversation-prompt "Debate AI safety" \
+  --turns 10 --system-prompt "Be concise and thoughtful"
+
+# Test concurrent sessions
+motive-proxy-e2e --use-llms --concurrent 3 --turns 5
 ```
 
 ## Common Patterns
@@ -142,6 +153,12 @@ Messages follow the OpenAI Chat Completions format:
 - **Behavioral analysis** of AI interactions
 - **User experience** testing
 
+### Human Chat Client Integration
+- **Embeddable chat interfaces** for human players
+- **Modern UI frameworks** (React, Vue, SvelteKit)
+- **Cross-platform compatibility** (Windows, macOS, Linux)
+- **Real-time communication** with MotiveProxy
+
 ## Troubleshooting Examples
 
 ### Connection Issues
@@ -164,6 +181,13 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 - Increase timeout values for long-running requests
 - Check network connectivity
 - Verify MotiveProxy server is responsive
+
+### Performance Optimization
+- Use smart context management (6-8 messages for Gemini)
+- Enable response caching for repeated queries
+- Set response length limits (1000-2000 characters)
+- Use retry logic with exponential backoff
+- Monitor response times and throughput
 
 ## Contributing Examples
 

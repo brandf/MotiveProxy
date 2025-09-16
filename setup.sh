@@ -56,6 +56,10 @@ pip install invoke
 echo "🧪 Running initial tests..."
 python -m pytest tests/ -v
 
+# Set up environment template for E2E testing
+echo "🔧 Setting up E2E testing environment..."
+python setup_env.py
+
 echo ""
 echo "🎉 Setup complete! Your MotiveProxy development environment is ready."
 echo ""
@@ -75,6 +79,9 @@ echo "To see all available tasks:"
 echo "  inv --list"
 echo ""
 echo "To run E2E tests with real LLMs:"
-echo "  python setup_env.py  # First, set up API keys"
+echo "  # Edit .env file with your API keys"
 echo "  motive-proxy-e2e --use-llms --turns 5"
+echo ""
+echo "To run advanced LLM-to-LLM testing:"
+echo "  motive-proxy-e2e --use-llms --turns 20 --max-context-messages 6"
 echo ""

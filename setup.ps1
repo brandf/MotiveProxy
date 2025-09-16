@@ -61,6 +61,10 @@ pip install invoke
 Write-Host "🧪 Running initial tests..." -ForegroundColor Yellow
 python -m pytest tests/ -v
 
+# Set up environment template for E2E testing
+Write-Host "🔧 Setting up E2E testing environment..." -ForegroundColor Yellow
+python setup_env.py
+
 Write-Host ""
 Write-Host "🎉 Setup complete! Your MotiveProxy development environment is ready." -ForegroundColor Green
 Write-Host ""
@@ -80,6 +84,9 @@ Write-Host "To see all available tasks:" -ForegroundColor Cyan
 Write-Host "  inv --list" -ForegroundColor White
 Write-Host ""
 Write-Host "To run E2E tests with real LLMs:" -ForegroundColor Cyan
-Write-Host "  python setup_env.py  # First, set up API keys" -ForegroundColor White
+Write-Host "  # Edit .env file with your API keys" -ForegroundColor White
 Write-Host "  motive-proxy-e2e --use-llms --turns 5" -ForegroundColor White
+Write-Host ""
+Write-Host "To run advanced LLM-to-LLM testing:" -ForegroundColor Cyan
+Write-Host "  motive-proxy-e2e --use-llms --turns 20 --max-context-messages 6" -ForegroundColor White
 Write-Host ""

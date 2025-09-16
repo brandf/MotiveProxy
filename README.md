@@ -16,7 +16,10 @@
 ✅ **Configuration Management** - Environment variables and CLI configuration  
 ✅ **Session Management** - Automatic cleanup, TTL, and admin endpoints  
 ✅ **Comprehensive Testing** - 109 tests with full coverage (Unit + Integration + E2E)  
-✅ **LLM-to-LLM E2E Testing** - Real AI conversations through MotiveProxy for validation
+✅ **LLM-to-LLM E2E Testing** - Real AI conversations through MotiveProxy for validation  
+✅ **Performance Optimizations** - Smart context management, response caching, and retry logic  
+✅ **Cross-Platform Support** - Windows, macOS, and Linux compatibility  
+✅ **Human Chat Client UI** - Recommendations for integrating generic LLM chat interfaces
 
 ## 🚀 Quick Start
 
@@ -636,7 +639,7 @@ response = openai_client.chat.completions.create(
 
 ## 🧪 E2E Testing with Real LLMs
 
-MotiveProxy includes powerful E2E testing capabilities that allow you to test real LLM-to-LLM conversations through the proxy.
+MotiveProxy includes powerful E2E testing capabilities that allow you to test real LLM-to-LLM conversations through the proxy. This validates that MotiveProxy works correctly with actual AI models, not just simulated clients.
 
 ### 🚀 Quick Setup
 
@@ -659,7 +662,7 @@ MotiveProxy includes powerful E2E testing capabilities that allow you to test re
 
 ### 🔑 Supported LLM Providers
 
-- **Google Gemini** (recommended for testing)
+- **Google Gemini** (recommended for testing - free credits available)
 - **OpenAI GPT** 
 - **Anthropic Claude**
 - **Cohere Command**
@@ -675,26 +678,124 @@ motive-proxy-e2e --use-llms \
   --turns 5
 ```
 
-### 🎯 Example: Multi-Turn Conversation
+### 🎯 Example: Multi-Turn Conversation with Performance Optimization
 
 ```bash
-# 5-turn conversation with context management
+# 20-turn conversation with smart context management
 motive-proxy-e2e --use-llms \
   --llm-provider-a google --llm-model-a gemini-2.5-flash \
   --llm-provider-b google --llm-model-b gemini-2.5-flash \
   --conversation-prompt "Let's discuss AI safety" \
-  --turns 5 \
-  --max-context-messages 8 \
-  --system-prompt "Be concise and thoughtful"
+  --turns 20 \
+  --max-context-messages 6 \
+  --max-response-length 1000 \
+  --system-prompt "Be concise and focused. Keep responses under 500 characters."
 ```
+
+### ⚡ Performance Features
+
+- **Smart Context Management**: Automatically truncates conversation history to prevent token limit issues
+- **Response Caching**: Caches identical responses to reduce API calls
+- **Retry Logic**: Exponential backoff for transient failures
+- **Response Length Limits**: Prevents overly verbose LLM responses
+- **Real-time Metrics**: Tracks response times and performance
 
 ### 📊 Test Results
 
 E2E tests generate comprehensive reports in `./e2e_test_results/` including:
-- Conversation logs
-- Performance metrics  
-- Error analysis
-- LLM response quality
+- Complete conversation logs
+- Performance metrics (response times, throughput)
+- Error analysis and debugging information
+- LLM response quality assessment
+- Context usage statistics
+
+## 🎨 Human Chat Client UI Integration
+
+MotiveProxy works with **any LLM-compatible chat interface**. For human players, we recommend these modern, embeddable chat client packages:
+
+### 🏆 **Top Recommendations**
+
+#### **LobeChat** ⭐ **Best Overall**
+- **Framework**: SvelteKit (embeddable in React/Vue)
+- **Features**: Modern UI, multi-provider support, Knowledge Base for RAG
+- **Integration**: Component embedding or iframe
+- **Benefits**: Voice interaction, file uploads, conversation history
+
+#### **LibreChat** ⭐ **Most Feature-Rich**
+- **Framework**: React-based
+- **Features**: ChatGPT-like interface, multi-user support, agent system
+- **Integration**: Full React app embedding
+- **Benefits**: Enterprise features, conversation persistence, user authentication
+
+#### **Open WebUI** ⭐ **Lightweight & Fast**
+- **Framework**: Cross-platform, mobile-friendly
+- **Features**: Minimalist design, offline capabilities
+- **Integration**: Widget embedding
+- **Benefits**: Fast, lightweight, multi-language support
+
+### 🔧 **Integration Approaches**
+
+#### **Component Embedding**
+```jsx
+// React example
+import { LobeChat } from '@lobechat/react'
+
+function MyWebsite() {
+  return (
+    <LobeChat 
+      apiEndpoint="https://your-motive-proxy.com/v1/chat/completions"
+      apiKey="your-api-key"
+      model="your-session-id"
+    />
+  )
+}
+```
+
+#### **Iframe Embedding**
+```html
+<iframe 
+  src="https://your-lobechat-instance.com/embed"
+  width="100%" 
+  height="600px"
+  frameborder="0">
+</iframe>
+```
+
+#### **Custom Integration**
+```jsx
+// Custom chat component using existing libraries
+import { ChatContainer, MessageList, Message, MessageInput } from '@chatscope/chat-ui-kit-react'
+
+function MotiveProxyChat() {
+  const [messages, setMessages] = useState([])
+  
+  const sendMessage = async (message) => {
+    const response = await fetch('https://your-motive-proxy.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [...messages, { role: 'user', content: message }],
+        model: 'your-session-id'
+      })
+    })
+    // Handle response...
+  }
+  
+  return (
+    <ChatContainer>
+      <MessageList>
+        {messages.map(msg => <Message key={msg.id} model={msg} />)}
+      </MessageList>
+      <MessageInput onSend={sendMessage} />
+    </ChatContainer>
+  )
+}
+```
+
+### 📦 **Embeddable Component Libraries**
+
+- **React**: `@chatscope/chat-ui-kit-react`, `react-chat-elements`, `@microsoft/fluentui-react-chat`
+- **Vue**: `vue-chat-scroll`, `vue-chat-component`
 
 ## Development
 
